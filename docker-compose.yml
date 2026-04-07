@@ -1,0 +1,84 @@
+services:
+  registry:
+    build: .
+    environment:
+      - WMPP_ADMIN_TOKEN=change-me
+      - WMPP_ROLE=registry
+    ports:
+      - "8090:8090"
+    command: ["java","-jar","/app/app.jar","--server.port=8090","--wmpp.role=registry"]
+
+  scheduler:
+    build: .
+    environment:
+      - WMPP_ROLE=scheduler
+    ports:
+      - "8081:8081"
+    command:
+      - "java"
+      - "-jar"
+      - "/app/app.jar"
+      - "--server.port=8081"
+      - "--wmpp.role=scheduler"
+      - "--wmpp.registry.baseUrl=http://registry:8090"
+      - "--wmpp.pusher.nodes=Pusher-1=http://pusher1:8084,Pusher-2=http://pusher2:8085"
+    depends_on:
+      - registry
+
+  gateway:
+    build: .
+    ports:
+      - "8080:8080"
+    command:
+      - "java"
+      - "-jar"
+      - "/app/app.jar"
+      - "--server.port=8080"
+      - "--wmpp.role=gateway"
+      - "--wmpp.scheduler.baseUrl=http://scheduler:8081"
+      - "--wmpp.appRegistry.file=/data/apps.json"
+      - "--wmpp.admin.token=change-me"
+    volumes:
+      - wmpp-data:/data
+    depends_on:
+      - scheduler
+
+  pusher1:
+    build: .
+    ports:
+      - "8084:8084"
+    command:
+      - "java"
+      - "-jar"
+      - "/app/app.jar"
+      - "--server.port=8084"
+      - "--wmpp.role=pusher"
+      - "--wmpp.pusher.id=Pusher-1"
+      - "--wmpp.registry.baseUrl=http://registry:8090"
+      - "--wmpp.appRegistry.file=/data/apps.json"
+    volumes:
+      - wmpp-data:/data
+    depends_on:
+      - registry
+
+  pusher2:
+    build: .
+    ports:
+      - "8085:8085"
+    command:
+      - "java"
+      - "-jar"
+      - "/app/app.jar"
+      - "--server.port=8085"
+      - "--wmpp.role=pusher"
+      - "--wmpp.pusher.id=Pusher-2"
+      - "--wmpp.registry.baseUrl=http://registry:8090"
+      - "--wmpp.appRegistry.file=/data/apps.json"
+    volumes:
+      - wmpp-data:/data
+    depends_on:
+      - registry
+
+volumes:
+  wmpp-data: {}
+

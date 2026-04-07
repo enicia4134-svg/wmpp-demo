@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SDK TEST</title>
+    <script src="wmpp-sdk.js"></script>
+</head>
+
+<body>
+
+<button onclick="start()">Connect SDK (systemA / 1001)</button>
+<p style="font-size:12px;color:#555;max-width:520px;margin:8px 0;">
+    服务端对外接口共四种（均需 App 头）：广播、单用户、批量用户、主题。
+    本页用 fetch 逐个验证接收侧控制台的 WS/SSE 日志；主题示例 topic=<code>starA</code>（内置订阅含 1001）。
+</p>
+<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
+    <button onclick="broadcast()">① Broadcast</button>
+    <button onclick="pushMe()">② Push user 1001</button>
+    <button onclick="pushUsersBatch()">③ Push users 1001,2002</button>
+    <button onclick="pushTopicStarA()">④ Push topic starA</button>
+</div>
+
+<script>
+
+    function start(){
+
+        wmpp.connect("systemA","1001")
+    }
+
+    async function broadcast(){
+        const resp = await fetch("/push/broadcast?message=" + encodeURIComponent("hello broadcast"), {
+            method:"POST",
+            headers:{
+                "X-App-Id":"systemA",
+                "X-App-Secret-Key":"systemA-secret"
+            }
+        })
+        console.log("broadcast:", await resp.text())
+    }
+
+    async function pushMe(){
+        const resp = await fetch("/push/user?userId=1001&message=" + encodeURIComponent("hello 1001"), {
+            method:"POST",
+            headers:{
+                "X-App-Id":"systemA",
+                "X-App-Secret-Key":"systemA-secret"
+            }
+        })
+        console.log("pushMe:", await resp.text())
+    }
+
+    async function pushUsersBatch(){
+        const resp = await fetch("/push/users", {
+            method:"POST",
+            headers:{
+                "X-App-Id":"systemA",
+                "X-App-Secret-Key":"systemA-secret",
+                "Content-Type":"application/json"
+            },
+            body: JSON.stringify({ userIds: ["1001","2002"], message: "hello batch users" })
+        })
+        console.log("pushUsers:", await resp.text())
+    }
+
+    async function pushTopicStarA(){
+        const resp = await fetch("/push/topic?topic=" + encodeURIComponent("starA") + "&message=" + encodeURIComponent("hello topic subscribers"), {
+            method:"POST",
+            headers:{
+                "X-App-Id":"systemA",
+                "X-App-Secret-Key":"systemA-secret"
+            }
+        })
+        console.log("pushTopic starA:", await resp.text())
+    }
+
+</script>
+
+</body>
+</html>

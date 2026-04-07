@@ -1,0 +1,9 @@
+[ {
+  "appId" : "systemA",
+  "secretKey" : "systemA-secret",
+  "allowPush" : true
+}, {
+  "appId" : "systemB",
+  "secretKey" : "systemB-secret",
+  "allowPush" : true
+} ]

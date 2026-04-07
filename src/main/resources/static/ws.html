@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WMPP Client</title>
+</head>
+
+<body>
+
+<h2>WebSocket Client</h2>
+
+<input id="appId" placeholder="appId" value="systemA"/>
+<input id="uid" placeholder="userId"/>
+<button onclick="connect()">Connect</button>
+<button onclick="send()">Send Hello</button>
+
+<div id="log"></div>
+
+<script>
+
+    let ws
+
+    function connect(){
+
+        let appId = document.getElementById("appId").value
+        let uid = document.getElementById("uid").value
+
+        ws = new WebSocket("ws://localhost:8080/connect?appId=" + appId + "&userId=" + uid)
+
+        ws.onopen = () => log("✅ connected")
+
+        ws.onmessage = (e)=> log("📩 收到推送: " + e.data)
+
+        ws.onclose = ()=> log("❌ disconnected")
+    }
+
+    function send(){
+        ws.send("hello server")
+    }
+
+    function log(msg){
+        document.getElementById("log").innerHTML += "<div>" + msg + "</div>"
+    }
+
+</script>
+
+</body>
+</html>
