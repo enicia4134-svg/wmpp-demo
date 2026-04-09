@@ -173,7 +173,14 @@
             <h3>1) 客户端连接</h3>
             <div class="row">
                 <label class="grow">AppId
-                    <input id="appId" value="systemA" />
+                    <select id="appId" onchange="syncSecretByApp()">
+                        <option value="systemA" selected>systemA</option>
+                        <option value="systemB">systemB</option>
+                        <option value="custom">custom (manual)</option>
+                    </select>
+                </label>
+                <label class="grow">AppSecretKey
+                    <input id="appSecretKey" value="systemA-secret" />
                 </label>
                 <label class="grow">My UserId
                     <input id="userId" value="1001" />
@@ -200,7 +207,6 @@
             <h3>2) 平台通知接口（发送侧）</h3>
             <div class="row">
                 <button onclick="broadcast()">Broadcast</button>
-                <button onclick="pushMe()">Push Me</button>
                 <button onclick="pushUsersBatch()">Push 1001,2002</button>
                 <button onclick="pushTopicStarA()">Push Topic starA</button>
             </div>
@@ -214,7 +220,7 @@
                 <button class="success" onclick="sendToTarget()">Send To Target</button>
             </div>
             <div class="help">
-                这里是“定向通知”能力，不等同于完整 IM 聊天系统（会话与历史消息由业务系统维护）。
+                “Send To Target”按私信语义演示（消息前缀为【私信】）；其余接口按通知语义。
             </div>
         </section>
     </div>
@@ -231,7 +237,13 @@
 <script>
     let connected = false
 
+    const APP_SECRETS = {
+        systemA: "systemA-secret",
+        systemB: "systemB-secret"
+    }
+
     function getAppId() { return document.getElementById("appId").value.trim() }
+    function getSecret() { return document.getElementById("appSecretKey").value.trim() }
     function getUserId() { return document.getElementById("userId").value.trim() }
 
     function setStatus(text, cls) {
@@ -251,6 +263,17 @@
 
     function clearLog() {
         document.getElementById("chatLog").innerHTML = ""
+    }
+
+    function syncSecretByApp() {
+        const app = getAppId()
+        const secretInput = document.getElementById("appSecretKey")
+        if (APP_SECRETS[app]) {
+            secretInput.value = APP_SECRETS[app]
+            appendLog(`APP switched to ${app}, secret auto-filled`, "sys")
+        } else if (app === "custom") {
+            appendLog("APP switched to custom, please input secret manually", "sys")
+        }
     }
 
     function connectClient() {
@@ -299,23 +322,10 @@
             method: "POST",
             headers: {
                 "X-App-Id": appId,
-                "X-App-Secret-Key": "systemA-secret"
+                "X-App-Secret-Key": getSecret()
             }
         })
         appendLog(`SEND -> broadcast (${text})`, "send")
-    }
-
-    async function pushMe() {
-        const appId = getAppId()
-        const me = getUserId()
-        const text = await requestText("/push/user?userId=" + encodeURIComponent(me) + "&message=" + encodeURIComponent("hello " + me), {
-            method: "POST",
-            headers: {
-                "X-App-Id": appId,
-                "X-App-Secret-Key": "systemA-secret"
-            }
-        })
-        appendLog(`SEND -> me(${me}) (${text})`, "send")
     }
 
     async function pushUsersBatch() {
@@ -324,7 +334,7 @@
             method: "POST",
             headers: {
                 "X-App-Id": appId,
-                "X-App-Secret-Key": "systemA-secret",
+                "X-App-Secret-Key": getSecret(),
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({ userIds: ["1001", "2002"], message: "hello batch users" })
@@ -338,7 +348,7 @@
             method: "POST",
             headers: {
                 "X-App-Id": appId,
-                "X-App-Secret-Key": "systemA-secret"
+                "X-App-Secret-Key": getSecret()
             }
         })
         appendLog(`SEND -> topic(starA) (${text})`, "send")
@@ -354,15 +364,15 @@
             return
         }
 
-        const text = await requestText("/push/user?userId=" + encodeURIComponent(target) + "&message=" + encodeURIComponent(msg), {
+        const text = await requestText("/push/user?userId=" + encodeURIComponent(target) + "&message=" + encodeURIComponent("【私信】" + msg), {
             method: "POST",
             headers: {
                 "X-App-Id": appId,
-                "X-App-Secret-Key": "systemA-secret"
+                "X-App-Secret-Key": getSecret()
             }
         })
 
-        appendLog(`SEND -> ${target}: ${msg} (${text})`, "send")
+        appendLog(`PRIVATE -> ${target}: ${msg} (${text})`, "send")
     }
 </script>
 </body>
