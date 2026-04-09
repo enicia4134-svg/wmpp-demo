@@ -1,5 +1,7 @@
 package com.zqw.wmpp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zqw.wmpp.registry.RegistryClient;
 import com.zqw.wmpp.role.WmppRole;
 import com.zqw.wmpp.session.SessionRegistry;
@@ -26,6 +28,9 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
 
     @Value("${wmpp.pusher.id:pusher-1}")
     private String pusherId;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -74,6 +79,18 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
                 session.sendMessage(new TextMessage("pong"));
             } catch (Exception ignored) {
             }
+            return;
+        }
+
+        // ACK protocol (json): {"type":"ack","msgId":"..."}
+        try {
+            JsonNode node = objectMapper.readTree(payload);
+            String type = node.hasNonNull("type") ? node.get("type").asText() : null;
+            String msgId = node.hasNonNull("msgId") ? node.get("msgId").asText() : null;
+            if ("ack".equalsIgnoreCase(type) && msgId != null && !msgId.isBlank()) {
+                sessionRegistry.ack(appId, userId, msgId);
+            }
+        } catch (Exception ignored) {
         }
     }
 

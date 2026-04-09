@@ -1,5 +1,8 @@
 package com.zqw.wmpp.session;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zqw.wmpp.reliability.DeliveryTracker;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.socket.CloseStatus;
@@ -21,6 +24,12 @@ public class SessionRegistry {
     public static final long DEFAULT_SSE_TIMEOUT_MS = 0L; // never timeout by server
 
     private final Clock clock = Clock.systemUTC();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final DeliveryTracker deliveryTracker;
+
+    public SessionRegistry(DeliveryTracker deliveryTracker) {
+        this.deliveryTracker = deliveryTracker;
+    }
 
     // Map<AppId, Map<UserId, SessionInfo>>
     private final Map<String, Map<String, SessionInfo>> sessions = new ConcurrentHashMap<>();
@@ -107,10 +116,15 @@ public class SessionRegistry {
         SessionInfo info = appMap.get(userId);
         if (info == null) return;
 
+        String msgId = extractMsgId(message);
+
         // Prefer SSE for data push channel if present
         if (info.sseEmitter != null) {
             try {
                 info.sseEmitter.send(SseEmitter.event().name("message").data(message));
+                if (msgId != null) {
+                    deliveryTracker.trackSend(appId, userId, msgId, message);
+                }
                 return;
             } catch (IOException ex) {
                 removeSse(appId, userId, info.sseEmitter);
@@ -121,6 +135,9 @@ public class SessionRegistry {
         if (ws != null && ws.isOpen()) {
             try {
                 ws.sendMessage(new TextMessage(message));
+                if (msgId != null) {
+                    deliveryTracker.trackSend(appId, userId, msgId, message);
+                }
             } catch (IOException ignored) {
                 // ignore
             }
@@ -133,6 +150,10 @@ public class SessionRegistry {
         SessionInfo info = appMap.get(userId);
         if (info == null) return Optional.empty();
         return Optional.ofNullable(info.webSocketSession);
+    }
+
+    public boolean ack(String appId, String userId, String msgId) {
+        return deliveryTracker.markAcked(appId, userId, msgId);
     }
 
     public void closeStaleWebSockets(long staleAfterMs) {
@@ -166,6 +187,19 @@ public class SessionRegistry {
             return info.isEmpty() ? null : info;
         });
         if (appMap.isEmpty()) sessions.remove(appId);
+    }
+
+    private String extractMsgId(String message) {
+        if (message == null || message.isBlank()) return null;
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            JsonNode idNode = node.get("msgId");
+            if (idNode == null || idNode.isNull()) return null;
+            String id = idNode.asText();
+            return (id == null || id.isBlank()) ? null : id;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private static final class SessionInfo {

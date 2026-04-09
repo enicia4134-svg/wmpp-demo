@@ -249,6 +249,8 @@ window.wmpp = {
             return
         }
 
+        this._autoAck(event.id)
+
         if (this.opts && this.opts.onMessage) {
             try {
                 this.opts.onMessage({ channel, ...event })
@@ -304,6 +306,16 @@ window.wmpp = {
             if (now - ts > ttl) {
                 this.dedupeCache.delete(key)
             }
+        }
+    },
+
+    _autoAck: function (msgId) {
+        if (!msgId) return
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
+        try {
+            this.ws.send(JSON.stringify({ type: "ack", msgId: msgId }))
+        } catch (e) {
+            // ignore ack send errors, retry path will handle eventual consistency
         }
     },
 
