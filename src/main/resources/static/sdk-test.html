@@ -1,142 +1,369 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <title>SDK TEST</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WMPP Console</title>
     <script src="wmpp-sdk.js"></script>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --panel: #141c33;
+            --panel-2: #1a2440;
+            --line: #2a3761;
+            --text: #e8ecff;
+            --muted: #a8b2d6;
+            --primary: #57a6ff;
+            --ok: #24c08f;
+            --warn: #ffb84d;
+            --danger: #ff6b6b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: radial-gradient(circle at top right, #1a2a57 0%, var(--bg) 45%);
+            color: var(--text);
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        .title {
+            margin: 0 0 6px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .sub {
+            margin: 0 0 18px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .card {
+            background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .card h3 {
+            margin: 0 0 10px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #cdd7ff;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .grow { flex: 1; }
+
+        label {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        input, select {
+            background: #0f1630;
+            color: var(--text);
+            border: 1px solid #32426f;
+            border-radius: 8px;
+            padding: 8px 10px;
+            min-width: 120px;
+            outline: none;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(87, 166, 255, 0.15);
+        }
+
+        button {
+            border: 1px solid #3a4d80;
+            background: #1d2b4f;
+            color: var(--text);
+            border-radius: 8px;
+            padding: 9px 12px;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        button:hover { transform: translateY(-1px); border-color: #5c78bf; }
+        button.primary { background: #1e427d; border-color: #3e7ad1; }
+        button.success { background: #1b4f43; border-color: #2a8b73; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            border: 1px solid #3a4d80;
+            color: #c9d4ff;
+            background: #182445;
+        }
+
+        .status.ok { border-color: #2a8b73; color: #a8f3dc; background: #15382f; }
+        .status.warn { border-color: #a67a2f; color: #ffe8be; background: #3d2f14; }
+
+        .help {
+            font-size: 12px;
+            color: var(--muted);
+            line-height: 1.55;
+            margin-top: 6px;
+        }
+
+        .log {
+            margin-top: 8px;
+            height: 360px;
+            overflow: auto;
+            border: 1px solid #334671;
+            border-radius: 10px;
+            background: #0b1228;
+            padding: 8px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .line { padding: 3px 2px; border-bottom: 1px dashed rgba(120, 140, 180, 0.15); }
+        .line.recv { color: #94ffc9; }
+        .line.send { color: #9fbcff; }
+        .line.sys { color: #ffd48a; }
+        .line.err { color: #ff9d9d; }
+
+        @media (max-width: 980px) {
+            .grid { grid-template-columns: 1fr; }
+            .log { height: 300px; }
+        }
+    </style>
 </head>
-
 <body>
+<div class="wrap">
+    <h1 class="title">WMPP Interactive Console</h1>
+    <p class="sub">
+        用于演示接入连接、定向通知、批量推送、Topic 推送与消息接收。默认策略：WS 优先，SSE 降级。
+    </p>
 
-<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-    <label>AppId <input id="appId" value="systemA" style="width:120px;"></label>
-    <label>My UserId <input id="userId" value="1001" style="width:100px;"></label>
-    <button onclick="start()">Connect</button>
-</div>
+    <div class="grid">
+        <section class="card">
+            <h3>1) 客户端连接</h3>
+            <div class="row">
+                <label class="grow">AppId
+                    <input id="appId" value="systemA" />
+                </label>
+                <label class="grow">My UserId
+                    <input id="userId" value="1001" />
+                </label>
+                <label>Transport
+                    <select id="transportPolicy">
+                        <option value="ws_primary_sse_fallback" selected>WS primary + SSE fallback</option>
+                        <option value="ws_only">WS only</option>
+                        <option value="sse_only">SSE only</option>
+                    </select>
+                </label>
+            </div>
+            <div class="row">
+                <button class="primary" onclick="connectClient()">Connect</button>
+                <button onclick="disconnectClient()">Disconnect</button>
+                <span id="connStatus" class="status">Disconnected</span>
+            </div>
+            <div class="help">
+                演示双用户时：请在第二个浏览器窗口用不同 userId（如 2002）连接。
+            </div>
+        </section>
 
-<p style="font-size:12px;color:#555;max-width:720px;margin:8px 0;">
-    服务端对外接口共四种（均需 App 头）：广播、单用户、批量用户、主题。
-    SDK 已切换为生产策略：默认 <code>WS优先 + SSE降级</code>（不会同时双通道重复消费）。
-</p>
+        <section class="card">
+            <h3>2) 平台通知接口（发送侧）</h3>
+            <div class="row">
+                <button onclick="broadcast()">Broadcast</button>
+                <button onclick="pushMe()">Push Me</button>
+                <button onclick="pushUsersBatch()">Push 1001,2002</button>
+                <button onclick="pushTopicStarA()">Push Topic starA</button>
+            </div>
+            <div class="row">
+                <label class="grow">Target UserId
+                    <input id="targetUserId" value="2002" />
+                </label>
+                <label class="grow">Message
+                    <input id="chatMessage" value="hello from 1001" />
+                </label>
+                <button class="success" onclick="sendToTarget()">Send To Target</button>
+            </div>
+            <div class="help">
+                这里是“定向通知”能力，不等同于完整 IM 聊天系统（会话与历史消息由业务系统维护）。
+            </div>
+        </section>
+    </div>
 
-<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
-    <button onclick="broadcast()">① Broadcast</button>
-    <button onclick="pushMe()">② Push me</button>
-    <button onclick="pushUsersBatch()">③ Push users 1001,2002</button>
-    <button onclick="pushTopicStarA()">④ Push topic starA</button>
-</div>
-
-<hr style="margin:16px 0;">
-
-<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
-    <label>Target UserId <input id="targetUserId" value="2002" style="width:100px;"></label>
-    <label>Message <input id="chatMessage" value="hello" style="width:260px;"></label>
-    <button onclick="sendPrivate()">Send Private</button>
-</div>
-
-<div style="margin-top:10px;border:1px solid #ddd;padding:8px;border-radius:6px;max-width:720px;">
-    <div style="font-size:12px;color:#666;margin-bottom:6px;">Chat Log</div>
-    <div id="chatLog" style="font-family:monospace;font-size:12px;max-height:220px;overflow:auto;"></div>
+    <section class="card" style="margin-top: 14px;">
+        <div class="row" style="justify-content: space-between; margin-bottom: 4px;">
+            <h3 style="margin: 0;">3) 实时日志</h3>
+            <button onclick="clearLog()">Clear</button>
+        </div>
+        <div id="chatLog" class="log"></div>
+    </section>
 </div>
 
 <script>
+    let connected = false
 
-    function appId(){ return document.getElementById("appId").value.trim() }
-    function userId(){ return document.getElementById("userId").value.trim() }
+    function getAppId() { return document.getElementById("appId").value.trim() }
+    function getUserId() { return document.getElementById("userId").value.trim() }
 
-    function appendLog(text){
+    function setStatus(text, cls) {
+        const el = document.getElementById("connStatus")
+        el.textContent = text
+        el.className = cls ? `status ${cls}` : "status"
+    }
+
+    function appendLog(text, type) {
         const el = document.getElementById("chatLog")
         const line = document.createElement("div")
+        line.className = `line ${type || "sys"}`
         line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`
         el.appendChild(line)
         el.scrollTop = el.scrollHeight
     }
 
-    function start(){
-        wmpp.connect(appId(), userId(), {
-            transportPolicy: "ws_primary_sse_fallback",
-            onMessage: ({ body, raw }) => {
-                const text = (body && body.payload) ? body.payload : raw
-                appendLog(`RECV <- ${text}`)
-            }
-        })
-        appendLog(`CONNECTED as ${appId()}/${userId()}`)
+    function clearLog() {
+        document.getElementById("chatLog").innerHTML = ""
     }
 
-    async function broadcast(){
-        const resp = await fetch("/push/broadcast?message=" + encodeURIComponent("hello broadcast"), {
-            method:"POST",
-            headers:{
-                "X-App-Id": appId(),
-                "X-App-Secret-Key":"systemA-secret"
-            }
-        })
-        const text = await resp.text()
-        console.log("broadcast:", text)
-        appendLog(`SEND -> broadcast : ${text}`)
-    }
+    function connectClient() {
+        const appId = getAppId()
+        const userId = getUserId()
+        const transportPolicy = document.getElementById("transportPolicy").value
 
-    async function pushMe(){
-        const me = userId()
-        const resp = await fetch("/push/user?userId=" + encodeURIComponent(me) + "&message=" + encodeURIComponent("hello " + me), {
-            method:"POST",
-            headers:{
-                "X-App-Id": appId(),
-                "X-App-Secret-Key":"systemA-secret"
-            }
-        })
-        const text = await resp.text()
-        console.log("pushMe:", text)
-        appendLog(`SEND -> me(${me}) : ${text}`)
-    }
-
-    async function pushUsersBatch(){
-        const resp = await fetch("/push/users", {
-            method:"POST",
-            headers:{
-                "X-App-Id": appId(),
-                "X-App-Secret-Key":"systemA-secret",
-                "Content-Type":"application/json"
-            },
-            body: JSON.stringify({ userIds: ["1001","2002"], message: "hello batch users" })
-        })
-        const text = await resp.text()
-        console.log("pushUsers:", text)
-        appendLog(`SEND -> users(1001,2002) : ${text}`)
-    }
-
-    async function pushTopicStarA(){
-        const resp = await fetch("/push/topic?topic=" + encodeURIComponent("starA") + "&message=" + encodeURIComponent("hello topic subscribers"), {
-            method:"POST",
-            headers:{
-                "X-App-Id": appId(),
-                "X-App-Secret-Key":"systemA-secret"
-            }
-        })
-        const text = await resp.text()
-        console.log("pushTopic starA:", text)
-        appendLog(`SEND -> topic(starA) : ${text}`)
-    }
-
-    async function sendPrivate(){
-        const target = document.getElementById("targetUserId").value.trim()
-        const msg = document.getElementById("chatMessage").value
-        if(!target){
-            appendLog("ERROR -> target userId required")
+        if (!appId || !userId) {
+            appendLog("appId/userId 不能为空", "err")
             return
         }
-        const resp = await fetch("/push/user?userId=" + encodeURIComponent(target) + "&message=" + encodeURIComponent(msg), {
-            method:"POST",
-            headers:{
-                "X-App-Id": appId(),
-                "X-App-Secret-Key":"systemA-secret"
+
+        wmpp.connect(appId, userId, {
+            transportPolicy,
+            onMessage: ({ body, raw }) => {
+                const text = (body && body.payload) ? body.payload : raw
+                appendLog(`RECV <- ${text}`, "recv")
             }
         })
-        const text = await resp.text()
-        appendLog(`SEND -> ${target} : ${msg} (${text})`)
+
+        connected = true
+        setStatus(`Connected as ${appId}/${userId}`, "ok")
+        appendLog(`CONNECTED ${appId}/${userId} (${transportPolicy})`, "sys")
     }
 
-</script>
+    function disconnectClient() {
+        wmpp.disconnect()
+        connected = false
+        setStatus("Disconnected")
+        appendLog("DISCONNECTED", "sys")
+    }
 
+    async function requestText(url, options) {
+        const resp = await fetch(url, options)
+        const text = await resp.text()
+        if (!resp.ok) {
+            appendLog(`HTTP ${resp.status} ${url} => ${text}`, "err")
+            throw new Error(text || `HTTP ${resp.status}`)
+        }
+        return text
+    }
+
+    async function broadcast() {
+        const appId = getAppId()
+        const text = await requestText("/push/broadcast?message=" + encodeURIComponent("hello broadcast"), {
+            method: "POST",
+            headers: {
+                "X-App-Id": appId,
+                "X-App-Secret-Key": "systemA-secret"
+            }
+        })
+        appendLog(`SEND -> broadcast (${text})`, "send")
+    }
+
+    async function pushMe() {
+        const appId = getAppId()
+        const me = getUserId()
+        const text = await requestText("/push/user?userId=" + encodeURIComponent(me) + "&message=" + encodeURIComponent("hello " + me), {
+            method: "POST",
+            headers: {
+                "X-App-Id": appId,
+                "X-App-Secret-Key": "systemA-secret"
+            }
+        })
+        appendLog(`SEND -> me(${me}) (${text})`, "send")
+    }
+
+    async function pushUsersBatch() {
+        const appId = getAppId()
+        const text = await requestText("/push/users", {
+            method: "POST",
+            headers: {
+                "X-App-Id": appId,
+                "X-App-Secret-Key": "systemA-secret",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ userIds: ["1001", "2002"], message: "hello batch users" })
+        })
+        appendLog(`SEND -> users(1001,2002) (${text})`, "send")
+    }
+
+    async function pushTopicStarA() {
+        const appId = getAppId()
+        const text = await requestText("/push/topic?topic=" + encodeURIComponent("starA") + "&message=" + encodeURIComponent("hello topic subscribers"), {
+            method: "POST",
+            headers: {
+                "X-App-Id": appId,
+                "X-App-Secret-Key": "systemA-secret"
+            }
+        })
+        appendLog(`SEND -> topic(starA) (${text})`, "send")
+    }
+
+    async function sendToTarget() {
+        const appId = getAppId()
+        const target = document.getElementById("targetUserId").value.trim()
+        const msg = document.getElementById("chatMessage").value
+
+        if (!target) {
+            appendLog("target userId 不能为空", "err")
+            return
+        }
+
+        const text = await requestText("/push/user?userId=" + encodeURIComponent(target) + "&message=" + encodeURIComponent(msg), {
+            method: "POST",
+            headers: {
+                "X-App-Id": appId,
+                "X-App-Secret-Key": "systemA-secret"
+            }
+        })
+
+        appendLog(`SEND -> ${target}: ${msg} (${text})`, "send")
+    }
+</script>
 </body>
 </html>
