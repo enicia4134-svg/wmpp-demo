@@ -17,15 +17,19 @@ public class PusherInternalController {
     @Autowired
     private SessionRegistry sessionRegistry;
 
+    public record PushBody(String message) {}
+
     @PostMapping("/broadcast")
-    public void broadcast(@RequestParam String appId, @RequestParam String message) {
+    public void broadcast(@RequestParam String appId, @RequestBody(required = false) PushBody body) {
         requirePusher();
+        String message = body == null || body.message() == null ? "" : body.message();
         sessionRegistry.broadcast(appId, message);
     }
 
     @PostMapping("/user")
-    public void user(@RequestParam String appId, @RequestParam String userId, @RequestParam String message) {
+    public void user(@RequestParam String appId, @RequestParam String userId, @RequestBody(required = false) PushBody body) {
         requirePusher();
+        String message = body == null || body.message() == null ? "" : body.message();
         sessionRegistry.pushToUser(appId, userId, message);
     }
 

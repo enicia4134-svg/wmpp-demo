@@ -29,14 +29,16 @@ public class PusherClient {
         }
     }
 
+    public record PushBody(String message) {}
+
     public void broadcast(String pusherId, String appId, String msg) {
         RestClient http = require(pusherId);
         http.post()
                 .uri(uriBuilder -> uriBuilder.path("/internal/push/broadcast")
                         .queryParam("appId", appId)
-                        .queryParam("message", msg)
                         .build())
                 .contentType(MediaType.APPLICATION_JSON)
+                .body(new PushBody(msg))
                 .retrieve()
                 .toBodilessEntity();
     }
@@ -47,9 +49,9 @@ public class PusherClient {
                 .uri(uriBuilder -> uriBuilder.path("/internal/push/user")
                         .queryParam("appId", appId)
                         .queryParam("userId", userId)
-                        .queryParam("message", msg)
                         .build())
                 .contentType(MediaType.APPLICATION_JSON)
+                .body(new PushBody(msg))
                 .retrieve()
                 .toBodilessEntity();
     }
