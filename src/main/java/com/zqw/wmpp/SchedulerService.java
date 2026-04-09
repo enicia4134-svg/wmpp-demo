@@ -75,7 +75,7 @@ public class SchedulerService {
     }
 
     public void dispatchUser(String appId, String userId, String msg) {
-        String payload = buildMessageEnvelope("user", "【私聊】" + msg);
+        String payload = buildMessageEnvelope("notification", "【通知】" + msg);
         if (role == WmppRole.scheduler) {
             String pusherId = registryClient.lookupPusher(appId, userId);
             if (pusherId == null || pusherId.isBlank()) return;
