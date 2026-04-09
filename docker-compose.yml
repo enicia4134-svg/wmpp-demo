@@ -28,6 +28,7 @@ services:
       - "--wmpp.role=scheduler"
       - "--wmpp.registry.baseUrl=http://registry:8090"
       - "--wmpp.pusher.nodes=Pusher-1=http://pusher1:8084,Pusher-2=http://pusher2:8085"
+      - "--wmpp.public.pusher.nodes=Pusher-1=http://39.107.127.13:8084,Pusher-2=http://39.107.127.13:8085"
     depends_on:
       registry:
         condition: service_healthy
