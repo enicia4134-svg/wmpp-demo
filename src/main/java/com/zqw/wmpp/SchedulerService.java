@@ -6,6 +6,7 @@ import com.zqw.wmpp.scheduler.RoundRobinStrategy;
 import com.zqw.wmpp.scheduler.SchedulerStrategy;
 import com.zqw.wmpp.registry.RegistryClient;
 import com.zqw.wmpp.role.WmppRole;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zqw.wmpp.session.SessionRegistry;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +15,11 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 public class SchedulerService {
@@ -36,8 +39,17 @@ public class SchedulerService {
     @Autowired
     private PusherClient pusherClient;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Value("${wmpp.scheduler.strategy:rr}")
     private String strategyName;
+
+    @Value("${wmpp.push.retry.max-attempts:3}")
+    private int pushRetryMaxAttempts;
+
+    @Value("${wmpp.push.retry.base-delay-ms:200}")
+    private long pushRetryBaseDelayMs;
 
     @PostConstruct
     public void init() {
@@ -53,9 +65,9 @@ public class SchedulerService {
 
         System.out.println("🧠 Scheduler选择节点: " + node.getPusherId() + ", strategy=" + effectiveStrategyName());
 
-        String payload = "[" + node.getPusherId() + "] " + message;
+        String payload = buildMessageEnvelope("broadcast", "[" + node.getPusherId() + "] " + message);
         if (role == WmppRole.scheduler) {
-            pusherClient.broadcast(node.getPusherId(), appId, payload);
+            withRetry("broadcast", appId, node.getPusherId(), () -> pusherClient.broadcast(node.getPusherId(), appId, payload));
         } else {
             // mono
             sessionRegistry.broadcast(appId, payload);
@@ -63,11 +75,11 @@ public class SchedulerService {
     }
 
     public void dispatchUser(String appId, String userId, String msg) {
-        String payload = "【私聊】" + msg;
+        String payload = buildMessageEnvelope("user", "【私聊】" + msg);
         if (role == WmppRole.scheduler) {
             String pusherId = registryClient.lookupPusher(appId, userId);
             if (pusherId == null || pusherId.isBlank()) return;
-            pusherClient.pushUser(pusherId, appId, userId, payload);
+            withRetry("user", appId, pusherId, () -> pusherClient.pushUser(pusherId, appId, userId, payload));
         } else {
             sessionRegistry.pushToUser(appId, userId, payload);
         }
@@ -134,10 +146,17 @@ public class SchedulerService {
                 }
             }
         }
-        // refresh snapshot connectionCount for "least" demo
-        int online = (role == WmppRole.scheduler) ? 0 : sessionRegistry.getOnlineCount(appId);
-        for (PusherNode n : nodes) {
-            n.setConnectionCountSnapshot(online);
+        // refresh snapshot connectionCount for least-connection strategy
+        if (role == WmppRole.scheduler) {
+            Map<String, Integer> counts = registryClient.pusherCounts(appId);
+            for (PusherNode n : nodes) {
+                n.setConnectionCountSnapshot(counts.getOrDefault(n.getPusherId(), 0));
+            }
+        } else {
+            int online = sessionRegistry.getOnlineCount(appId);
+            for (PusherNode n : nodes) {
+                n.setConnectionCountSnapshot(online);
+            }
         }
         return getStrategy().select(appId, nodes);
     }
@@ -170,5 +189,56 @@ public class SchedulerService {
     private String effectiveStrategyName() {
         String name = strategyName == null ? "rr" : strategyName.trim().toLowerCase();
         return name.isBlank() ? "rr" : name;
+    }
+
+    private String buildMessageEnvelope(String type, String payload) {
+        try {
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("msgId", UUID.randomUUID().toString());
+            event.put("type", type == null ? "message" : type);
+            event.put("timestamp", System.currentTimeMillis());
+            event.put("payload", payload == null ? "" : payload);
+            return objectMapper.writeValueAsString(event);
+        } catch (Exception e) {
+            return payload == null ? "" : payload;
+        }
+    }
+
+    private void withRetry(String op, String appId, String pusherId, ThrowingRunnable action) {
+        int attempts = Math.max(1, pushRetryMaxAttempts);
+        RuntimeException last = null;
+        for (int i = 1; i <= attempts; i++) {
+            try {
+                action.run();
+                return;
+            } catch (Exception ex) {
+                last = (ex instanceof RuntimeException re) ? re : new RuntimeException(ex);
+                if (i >= attempts) break;
+                long delay = nextRetryDelayMs(i);
+                System.out.println("⚠️ push retry scheduled: op=" + op + ", appId=" + appId + ", pusherId=" + pusherId + ", attempt=" + i + "/" + attempts + ", delayMs=" + delay + ", err=" + ex.getMessage());
+                sleepQuietly(delay);
+            }
+        }
+        throw new RuntimeException("push failed after retries: op=" + op + ", appId=" + appId + ", pusherId=" + pusherId, last);
+    }
+
+    private long nextRetryDelayMs(int attempt) {
+        long base = Math.max(1L, pushRetryBaseDelayMs);
+        long exp = Math.min(5000L, base * (1L << Math.max(0, attempt - 1)));
+        long jitter = (long) (Math.random() * Math.max(50L, exp / 5));
+        return exp + jitter;
+    }
+
+    private void sleepQuietly(long ms) {
+        try {
+            Thread.sleep(Math.max(1L, ms));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @FunctionalInterface
+    private interface ThrowingRunnable {
+        void run() throws Exception;
     }
 }

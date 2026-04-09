@@ -50,5 +50,16 @@ public class RegistryClient {
                 .retrieve()
                 .body(String.class);
     }
+
+    public java.util.Map<String, Integer> pusherCounts(String appId) {
+        if (role == WmppRole.mono) return java.util.Map.of("local", 0);
+        java.util.Map<String, Integer> result = http.get()
+                .uri(uriBuilder -> uriBuilder.path("/registry/pusher-counts")
+                        .queryParam("appId", appId)
+                        .build())
+                .retrieve()
+                .body(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Integer>>() {});
+        return result == null ? java.util.Map.of() : result;
+    }
 }
 

@@ -57,6 +57,19 @@ public class RegistryController {
         return routes;
     }
 
+    @GetMapping("/pusher-counts")
+    public Map<String, Integer> pusherCounts(@RequestParam String appId) {
+        requireRegistryRole();
+        Map<String, Integer> counts = new ConcurrentHashMap<>();
+        Map<String, String> appMap = routes.get(appId);
+        if (appMap == null || appMap.isEmpty()) return counts;
+        for (String pusherId : appMap.values()) {
+            if (blank(pusherId)) continue;
+            counts.merge(pusherId, 1, Integer::sum);
+        }
+        return counts;
+    }
+
     private void requireRegistryRole() {
         if (role != WmppRole.registry && role != WmppRole.mono) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not registry role");
