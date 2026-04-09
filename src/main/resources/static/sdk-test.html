@@ -8,71 +8,132 @@
 
 <body>
 
-<button onclick="start()">Connect SDK (systemA / 1001)</button>
-<p style="font-size:12px;color:#555;max-width:520px;margin:8px 0;">
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <label>AppId <input id="appId" value="systemA" style="width:120px;"></label>
+    <label>My UserId <input id="userId" value="1001" style="width:100px;"></label>
+    <button onclick="start()">Connect</button>
+</div>
+
+<p style="font-size:12px;color:#555;max-width:720px;margin:8px 0;">
     服务端对外接口共四种（均需 App 头）：广播、单用户、批量用户、主题。
     SDK 已切换为生产策略：默认 <code>WS优先 + SSE降级</code>（不会同时双通道重复消费）。
 </p>
+
 <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;">
     <button onclick="broadcast()">① Broadcast</button>
-    <button onclick="pushMe()">② Push user 1001</button>
+    <button onclick="pushMe()">② Push me</button>
     <button onclick="pushUsersBatch()">③ Push users 1001,2002</button>
     <button onclick="pushTopicStarA()">④ Push topic starA</button>
 </div>
 
+<hr style="margin:16px 0;">
+
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+    <label>Target UserId <input id="targetUserId" value="2002" style="width:100px;"></label>
+    <label>Message <input id="chatMessage" value="hello" style="width:260px;"></label>
+    <button onclick="sendPrivate()">Send Private</button>
+</div>
+
+<div style="margin-top:10px;border:1px solid #ddd;padding:8px;border-radius:6px;max-width:720px;">
+    <div style="font-size:12px;color:#666;margin-bottom:6px;">Chat Log</div>
+    <div id="chatLog" style="font-family:monospace;font-size:12px;max-height:220px;overflow:auto;"></div>
+</div>
+
 <script>
 
-    function start(){
+    function appId(){ return document.getElementById("appId").value.trim() }
+    function userId(){ return document.getElementById("userId").value.trim() }
 
-        wmpp.connect("systemA","1001",{
-            transportPolicy: "ws_primary_sse_fallback"
+    function appendLog(text){
+        const el = document.getElementById("chatLog")
+        const line = document.createElement("div")
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`
+        el.appendChild(line)
+        el.scrollTop = el.scrollHeight
+    }
+
+    function start(){
+        wmpp.connect(appId(), userId(), {
+            transportPolicy: "ws_primary_sse_fallback",
+            onMessage: ({ body, raw }) => {
+                const text = (body && body.payload) ? body.payload : raw
+                appendLog(`RECV <- ${text}`)
+            }
         })
+        appendLog(`CONNECTED as ${appId()}/${userId()}`)
     }
 
     async function broadcast(){
         const resp = await fetch("/push/broadcast?message=" + encodeURIComponent("hello broadcast"), {
             method:"POST",
             headers:{
-                "X-App-Id":"systemA",
+                "X-App-Id": appId(),
                 "X-App-Secret-Key":"systemA-secret"
             }
         })
-        console.log("broadcast:", await resp.text())
+        const text = await resp.text()
+        console.log("broadcast:", text)
+        appendLog(`SEND -> broadcast : ${text}`)
     }
 
     async function pushMe(){
-        const resp = await fetch("/push/user?userId=1001&message=" + encodeURIComponent("hello 1001"), {
+        const me = userId()
+        const resp = await fetch("/push/user?userId=" + encodeURIComponent(me) + "&message=" + encodeURIComponent("hello " + me), {
             method:"POST",
             headers:{
-                "X-App-Id":"systemA",
+                "X-App-Id": appId(),
                 "X-App-Secret-Key":"systemA-secret"
             }
         })
-        console.log("pushMe:", await resp.text())
+        const text = await resp.text()
+        console.log("pushMe:", text)
+        appendLog(`SEND -> me(${me}) : ${text}`)
     }
 
     async function pushUsersBatch(){
         const resp = await fetch("/push/users", {
             method:"POST",
             headers:{
-                "X-App-Id":"systemA",
+                "X-App-Id": appId(),
                 "X-App-Secret-Key":"systemA-secret",
                 "Content-Type":"application/json"
             },
             body: JSON.stringify({ userIds: ["1001","2002"], message: "hello batch users" })
         })
-        console.log("pushUsers:", await resp.text())
+        const text = await resp.text()
+        console.log("pushUsers:", text)
+        appendLog(`SEND -> users(1001,2002) : ${text}`)
     }
 
     async function pushTopicStarA(){
         const resp = await fetch("/push/topic?topic=" + encodeURIComponent("starA") + "&message=" + encodeURIComponent("hello topic subscribers"), {
             method:"POST",
             headers:{
-                "X-App-Id":"systemA",
+                "X-App-Id": appId(),
                 "X-App-Secret-Key":"systemA-secret"
             }
         })
-        console.log("pushTopic starA:", await resp.text())
+        const text = await resp.text()
+        console.log("pushTopic starA:", text)
+        appendLog(`SEND -> topic(starA) : ${text}`)
+    }
+
+    async function sendPrivate(){
+        const target = document.getElementById("targetUserId").value.trim()
+        const msg = document.getElementById("chatMessage").value
+        if(!target){
+            appendLog("ERROR -> target userId required")
+            return
+        }
+        const resp = await fetch("/push/user?userId=" + encodeURIComponent(target) + "&message=" + encodeURIComponent(msg), {
+            method:"POST",
+            headers:{
+                "X-App-Id": appId(),
+                "X-App-Secret-Key":"systemA-secret"
+            }
+        })
+        const text = await resp.text()
+        appendLog(`SEND -> ${target} : ${msg} (${text})`)
     }
 
 </script>
