@@ -56,22 +56,27 @@ public class SchedulerService {
         // demo seed
         initAppNodes("systemA");
         initAppNodes("systemB");
-        System.out.println("✅ 初始化Pusher节点池: systemA/systemB");
+        System.out.println("初始化Pusher节点池: systemA/systemB");
     }
 
     public void dispatchBroadcast(String appId, String message) throws Exception {
-
-        PusherNode node = selectNode(appId);
-
-        System.out.println("🧠 Scheduler选择节点: " + node.getPusherId() + ", strategy=" + effectiveStrategyName());
-
-        String payload = buildMessageEnvelope("broadcast", "[" + node.getPusherId() + "] " + message);
         if (role == WmppRole.scheduler) {
-            withRetry("broadcast", appId, node.getPusherId(), () -> pusherClient.broadcast(node.getPusherId(), appId, payload));
-        } else {
-            // mono
-            sessionRegistry.broadcast(appId, payload);
+            List<String> pusherIds = availablePusherIds();
+            if (pusherIds.isEmpty()) {
+                throw new IllegalStateException("No available pusher nodes for broadcast");
+            }
+
+            String payload = buildMessageEnvelope("broadcast", message);
+            for (String pusherId : pusherIds) {
+                withRetry("broadcast", appId, pusherId, () -> pusherClient.broadcast(pusherId, appId, payload));
+            }
+            System.out.println("Broadcast fanout completed: appId=" + appId + ", nodes=" + pusherIds.size());
+            return;
         }
+
+        // mono
+        String payload = buildMessageEnvelope("broadcast", message);
+        sessionRegistry.broadcast(appId, payload);
     }
 
     public void dispatchUser(String appId, String userId, String msg) {
@@ -96,7 +101,7 @@ public class SchedulerService {
     public void dispatchTopicPush(String appId, String topic, String msg,
                                   TopicService topicService) throws Exception {
 
-        System.out.println("🧠 Topic调度开始: appId=" + appId + ", topic=" + topic);
+        System.out.println("Topic调度开始: appId=" + appId + ", topic=" + topic);
 
         Set<String> users = topicService.getSubscribers(appId, topic);
 
@@ -105,7 +110,7 @@ public class SchedulerService {
             dispatchUser(appId, uid, "[Topic:"+topic+"] " + msg);
         }
 
-        System.out.println("🧠 Topic调度完成");
+        System.out.println("Topic调度完成");
     }
 
     private void initAppNodes(String appId) {
@@ -215,7 +220,7 @@ public class SchedulerService {
                 last = (ex instanceof RuntimeException re) ? re : new RuntimeException(ex);
                 if (i >= attempts) break;
                 long delay = nextRetryDelayMs(i);
-                System.out.println("⚠️ push retry scheduled: op=" + op + ", appId=" + appId + ", pusherId=" + pusherId + ", attempt=" + i + "/" + attempts + ", delayMs=" + delay + ", err=" + ex.getMessage());
+                System.out.println("push retry scheduled: op=" + op + ", appId=" + appId + ", pusherId=" + pusherId + ", attempt=" + i + "/" + attempts + ", delayMs=" + delay + ", err=" + ex.getMessage());
                 sleepQuietly(delay);
             }
         }

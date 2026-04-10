@@ -38,7 +38,12 @@ public class RegistryController {
         }
         Map<String, String> appMap = routes.get(body.appId());
         if (appMap != null) {
-            appMap.remove(body.userId());
+            if (blank(body.pusherId())) {
+                appMap.remove(body.userId());
+            } else {
+                appMap.computeIfPresent(body.userId(), (uid, currentPusherId) ->
+                        currentPusherId.equals(body.pusherId()) ? null : currentPusherId);
+            }
             if (appMap.isEmpty()) routes.remove(body.appId());
         }
     }
