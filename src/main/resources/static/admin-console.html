@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin 控制台</title>
+  <style>
+    :root{--bg:#f4f8ff;--panel:#ffffff;--line:#b9c8e8;--text:#1f2a36;--muted:#5f7388}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 12% 10%,rgba(73,132,255,.23),transparent 28%),radial-gradient(circle at 88% 12%,rgba(255,117,150,.18),transparent 28%),radial-gradient(circle at 60% 84%,rgba(58,201,147,.18),transparent 30%),linear-gradient(180deg,#f8fbff 0%,#f3f7ff 52%,#f1f3f8 100%);color:var(--text)}
+    .wrap{max-width:1280px;margin:0 auto;padding:24px 16px}.panel{background:linear-gradient(160deg,#ffffff,#f4f7ff 64%,#eef7f4 100%);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(75,110,176,.16)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}h1,h2,p{margin:0}.sub{margin-top:8px;color:var(--muted);line-height:1.7;font-size:13px}
+    input,button,select{font:inherit}input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #b9c8e8;background:linear-gradient(180deg,#ffffff,#f7fbff);color:var(--text)}button{padding:10px 14px;border-radius:10px;border:1px solid #4b84d6;background:linear-gradient(180deg,#eef5ff,#dfeeff);color:#203040;cursor:pointer}.toolbar{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}.card{padding:14px;border:1px solid #b9c8e8;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff)}.num{font-size:28px;font-weight:700;margin-top:6px}
+    .table{margin-top:12px;border:1px solid #b9c8e8;border-radius:12px;overflow:auto;background:linear-gradient(180deg,#ffffff,#f8fbff)}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid rgba(75,132,214,.18);text-align:left;vertical-align:top}th{color:#3766a5}.hint{margin-top:10px;padding:12px;border-radius:12px;background:linear-gradient(180deg,#f8fbff,#eef7f4);border:1px solid #b9c8e8;color:#1f2a36;font-size:13px;line-height:1.7}
+    .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}.kpi .card{padding:10px}
+    .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;border:1px solid #b9c8e8;background:#f5f9ff;color:#3766a5;font-size:12px}
+    .chartBox{margin-top:10px;padding:12px;border:1px solid #b9c8e8;border-radius:12px;background:linear-gradient(180deg,#ffffff,#f7fbff)}
+    .bars{height:120px;display:flex;align-items:flex-end;gap:6px}
+    .bar{flex:1;min-width:8px;border-radius:8px 8px 2px 2px;background:linear-gradient(180deg,#63a2ff,#2f74c0)}
+    .legend{display:flex;justify-content:space-between;color:#5f7388;font-size:12px;margin-top:8px}
+    @media (max-width:980px){.grid,.cards,.kpi{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>Admin 控制台（平台总后台）</h1>
+    <p class="sub">管理员可管理 AppKey、查看全租户统计、管理 Pusher 实例池、观察负载均衡分布。业务系统方仅可看到自己租户数据。</p>
+    <div class="toolbar">
+      <input id="adminToken" value="change-me" style="max-width:260px" />
+      <span class="pill">实时监视：<b id="rtStatus">开启</b></span>
+      <span class="pill">自动刷新：<b id="rtInterval">3s</b></span>
+      <span class="pill">最近刷新：<b id="lastTs">-</b></span>
+      <span class="pill">实时曲线：<b id="chartState">开启</b></span>
+      <button onclick="loadAll()">手动刷新（可选）</button>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="sub">租户总数</div><div id="tenantCount" class="num">-</div></div>
+    <div class="card"><div class="sub">总在线终端数</div><div id="onlineCount" class="num">-</div></div>
+    <div class="card"><div class="sub">活跃租户数</div><div id="activeCount" class="num">-</div></div>
+    <div class="card"><div class="sub">节点数</div><div id="nodeCount" class="num">-</div></div>
+    <div class="card"><div class="sub">队列积压任务</div><div id="queueSize" class="num">-</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>AppKey 注册与发放流程</h2>
+      <div class="toolbar">
+        <input id="newAppId" placeholder="输入业务系统 appId，例如 jd_clone" style="max-width:280px" />
+        <button onclick="createApp()">注册业务系统并发放密钥</button>
+      </div>
+      <div class="hint">流程：管理员创建 appId -> 系统生成 SecretKey -> 业务系统在 Server SDK 配置 appId/secret 后可调用推送接口。</div>
+      <div class="table"><table><thead><tr><th>AppId</th><th>AllowPush</th><th>SecretKey</th><th>操作</th></tr></thead><tbody id="appBody"></tbody></table></div>
+    </div>
+
+    <div class="panel">
+      <h2>Pusher 实例池状态区（自动伸缩演示）</h2>
+      <div class="toolbar">
+        <button onclick="loadPool()">刷新实例池状态</button>
+      </div>
+      <div class="kpi">
+        <div class="card"><div class="sub">目标实例数</div><div id="desiredInstances" class="num">-</div></div>
+        <div class="card"><div class="sub">运行实例数</div><div id="runningInstances" class="num">-</div></div>
+        <div class="card"><div class="sub">总连接数</div><div id="poolConnections" class="num">-</div></div>
+        <div class="card"><div class="sub">平均负载</div><div id="avgLoad" class="num">-</div></div>
+      </div>
+      <div class="hint"><b>自动策略（只读）：</b>最小实例 <span id="minInstances">-</span>，最大实例 <span id="maxInstances">-</span>，扩容阈值 <span id="upThreshold">-</span>，缩容阈值 <span id="downThreshold">-</span>，自动伸缩 <span id="autoScale">-</span>。</div>
+      <div class="hint"><b>说明：</b>当前为自动伸缩演示层，系统根据负载自动调整实例池；本页只展示状态与趋势，不做手动扩缩容。</div>
+      <div class="table"><table><thead><tr><th>时间戳</th><th>连接数</th><th>实例数</th></tr></thead><tbody id="poolSeriesBody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>高并发 / 负载均衡演示区</h2>
+      <div class="hint"><b>当前策略：</b><span id="strategy">-</span></div>
+      <div class="hint"><b>承载说明：</b><span id="concurrencyNote">-</span></div>
+      <div class="table"><table><thead><tr><th>Pusher 节点</th><th>连接数</th></tr></thead><tbody id="nodeBody"></tbody></table></div>
+    </div>
+
+    <div class="panel">
+      <h2>推送进度（全租户）</h2>
+      <div class="table"><table><thead><tr><th>AppId</th><th>目标数</th><th>已推</th><th>成功</th><th>失败</th><th>进度%</th></tr></thead><tbody id="progressBody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h2>实时趋势图表</h2>
+    <div class="chartBox">
+      <div class="bars" id="trendBars"></div>
+      <div class="legend"><span>最近 10 次刷新</span><span id="trendHint">等待数据</span></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h2>全量路由快照</h2>
+    <div class="table"><table><thead><tr><th>AppId</th><th>UserId</th><th>Pusher</th></tr></thead><tbody id="routeBody"></tbody></table></div>
+  </div>
+</div>
+<script>
+function $(id){return document.getElementById(id)}
+function token(){return {'X-Admin-Token':$('adminToken').value.trim()}}
+const trendHistory=[]
+async function req(url,opt){const r=await fetch(url,opt);const t=await r.text();if(!r.ok) throw new Error(t||('HTTP '+r.status));try{return t?JSON.parse(t):null}catch{return t}}
+function renderTrend(sample){trendHistory.push(sample);while(trendHistory.length>10) trendHistory.shift();const max=Math.max(1,...trendHistory.map(x=>x.queueSize||0),...trendHistory.map(x=>x.totalOnline||0),...trendHistory.map(x=>x.instances||0));$('trendBars').innerHTML=trendHistory.map(x=>`<div class="bar" title="${x.ts}
+队列:${x.queueSize}
+在线:${x.totalOnline}
+实例:${x.instances}" style="height:${Math.max(8,Math.round(((x.queueSize||0)/max)*100))}%;background:linear-gradient(180deg,#63a2ff,#2f74c0)"></div>`).join('');$('trendHint').textContent=`队列 ${sample.queueSize} / 在线 ${sample.totalOnline} / 实例 ${sample.instances}`}
+async function loadOverview(){const data=await req('/admin/console/overview',{headers:token()});$('tenantCount').textContent=data.tenantCount;$('onlineCount').textContent=data.totalOnlineClients;$('activeCount').textContent=data.activeTenantCount;$('nodeCount').textContent=data.nodeCount;$('queueSize').textContent=data.queueSize;$('strategy').textContent=data.schedulerStrategy||'-';$('concurrencyNote').textContent=data.concurrencyNote||'-';$('lastTs').textContent=new Date().toLocaleTimeString();$('nodeBody').innerHTML=Object.entries(data.nodeConnections||{}).map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join('')||'<tr><td colspan="2">暂无节点数据</td></tr>';const rows=[];Object.entries(data.routes||{}).forEach(([app,users])=>Object.entries(users||{}).forEach(([u,p])=>rows.push(`<tr><td>${app}</td><td>${u}</td><td>${p}</td></tr>`)));$('routeBody').innerHTML=rows.length?rows.join(''):'<tr><td colspan="3">暂无路由快照</td></tr>';const progressRows=[];Object.entries(data.progressByApp||{}).forEach(([app,p])=>progressRows.push(`<tr><td>${app}</td><td>${p.totalTarget}</td><td>${p.pushed}</td><td>${p.success}</td><td>${p.failed}</td><td>${p.percent}%</td></tr>`));$('progressBody').innerHTML=progressRows.length?progressRows.join(''):'<tr><td colspan="6">暂无进度数据</td></tr>';if(data.pusherPool) renderPool(data.pusherPool); renderTrend({ts:Date.now(),queueSize:data.queueSize,totalOnline:data.totalOnlineClients,instances:data.pusherPool?data.pusherPool.runningInstances:0})}
+function renderPool(pool){$('desiredInstances').textContent=pool.desiredInstances;$('runningInstances').textContent=pool.runningInstances;$('poolConnections').textContent=pool.totalConnections;$('avgLoad').textContent=pool.avgLoadPerInstance;$('minInstances').textContent=pool.minInstances;$('maxInstances').textContent=pool.maxInstances;$('upThreshold').textContent=pool.scaleUpThreshold;$('downThreshold').textContent=pool.scaleDownThreshold;$('autoScale').textContent=pool.autoScaleEnabled?'开启':'关闭';const body=(pool.series||[]).map(p=>`<tr><td>${new Date(p.ts).toLocaleTimeString()}</td><td>${p.connections}</td><td>${p.instances}</td></tr>`).join('');$('poolSeriesBody').innerHTML=body||'<tr><td colspan="3">暂无数据</td></tr>'}
+async function loadPool(){const data=await req('/admin/console/pusher-pool',{headers:token()});renderPool(data)}
+
+async function listApps(){const apps=await req('/admin/apps',{headers:token()});$('appBody').innerHTML=(apps||[]).map(a=>`<tr><td>${a.appId}</td><td>${a.allowPush}</td><td>${a.secretKey}</td><td><button onclick="rotateSecret('${a.appId}')">轮换密钥</button> <button onclick="toggleAllow('${a.appId}',${!a.allowPush})">${a.allowPush?'禁用':'启用'}推送</button></td></tr>`).join('')||'<tr><td colspan="4">暂无租户</td></tr>'}
+async function createApp(){const appId=$('newAppId').value.trim();if(!appId){alert('请填写 appId');return}await req('/admin/apps',{method:'POST',headers:{...token(),'Content-Type':'application/json'},body:JSON.stringify({appId,allowPush:true})});$('newAppId').value='';await listApps();await loadOverview()}
+async function rotateSecret(appId){await req('/admin/apps/'+encodeURIComponent(appId)+'/rotateSecret',{method:'POST',headers:token()});await listApps()}
+async function toggleAllow(appId,allow){await req('/admin/apps/'+encodeURIComponent(appId)+'/allowPush?allow='+allow,{method:'POST',headers:token()});await listApps()}
+let autoTimer=null
+async function loadAll(){try{await Promise.all([loadOverview(),listApps(),loadPool()])}catch(e){alert('加载失败：'+e.message)}}
+function startAutoRefresh(){if(autoTimer) clearInterval(autoTimer);loadAll();autoTimer=setInterval(loadAll,3000)}
+window.addEventListener('load',startAutoRefresh)
+</script>
+</body>
+</html>

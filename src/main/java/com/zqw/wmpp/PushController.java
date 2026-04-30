@@ -1,6 +1,8 @@
 package com.zqw.wmpp;
 
 import com.zqw.wmpp.auth.AppAuthInterceptor;
+import com.zqw.wmpp.reliability.PushAuditService;
+import com.zqw.wmpp.reliability.PushTaskQueueService;
 import com.zqw.wmpp.role.WmppRole;
 import com.zqw.wmpp.scheduler.SchedulerClient;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +29,15 @@ public class PushController {
     @Autowired
     private WmppRole role;
 
+    @Autowired
+    private PushTaskQueueService pushTaskQueueService;
+
+    @Autowired
+    private PushAuditService pushAuditService;
+
+    @Autowired
+    private com.zqw.wmpp.session.SessionRegistry sessionRegistry;
+
     @GetMapping("/broadcast")
     public String broadcast(@RequestParam(required = false) String message, HttpServletRequest request) throws Exception {
         requireGateway();
@@ -35,13 +46,10 @@ public class PushController {
         System.out.println("🚀 Gateway 收到推送请求: " + payload);
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
-        if (role == WmppRole.gateway) {
-            schedulerClient.broadcast(appId, payload);
-        } else {
-            schedulerService.dispatchBroadcast(appId, payload);
-        }
-
-        return "success";
+        long target = sessionRegistry.getOnlineCount(appId);
+        String taskId = pushTaskQueueService.enqueueBroadcast(appId, payload);
+        pushAuditService.record(taskId, appId, "BROADCAST", payload, List.of("ALL"), target, target, 0);
+        return "queued:" + taskId;
     }
 
     @PostMapping("/broadcast")
@@ -55,13 +63,10 @@ public class PushController {
         String payload = message == null ? "" : message;
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
-        if (role == WmppRole.gateway) {
-            schedulerClient.user(appId, userId, payload);
-        } else {
-            schedulerService.dispatchUser(appId, userId, payload);
-        }
-
-        return "user push ok";
+        long target = sessionRegistry.getWebSocket(appId, userId).isPresent() ? 1L : 0L;
+        String taskId = pushTaskQueueService.enqueueUser(appId, userId, payload);
+        pushAuditService.record(taskId, appId, "USER", payload, List.of(userId), target, target, 0);
+        return "queued-user:" + taskId;
     }
 
     @PostMapping("/user")
@@ -77,12 +82,10 @@ public class PushController {
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
         if (body == null || body.userIds() == null || body.userIds().isEmpty()) return "userIds required";
         String payload = body.message() == null ? "" : body.message();
-        if (role == WmppRole.gateway) {
-            schedulerClient.users(appId, body.userIds(), payload);
-        } else {
-            schedulerService.dispatchUsers(appId, body.userIds(), payload);
-        }
-        return "users push ok";
+        long target = body.userIds().stream().filter(id -> sessionRegistry.getWebSocket(appId, id).isPresent()).count();
+        String taskId = pushTaskQueueService.enqueueUsers(appId, body.userIds(), payload);
+        pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
+        return "queued-users:" + taskId;
     }
 
     @GetMapping("/users")
@@ -94,12 +97,10 @@ public class PushController {
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toList());
-        if (role == WmppRole.gateway) {
-            schedulerClient.users(appId, ids, payload);
-        } else {
-            schedulerService.dispatchUsers(appId, ids, payload);
-        }
-        return "users push ok";
+        long target = ids.stream().filter(id -> sessionRegistry.getWebSocket(appId, id).isPresent()).count();
+        String taskId = pushTaskQueueService.enqueueUsers(appId, ids, payload);
+        pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
+        return "queued-users:" + taskId;
     }
 
     @Autowired

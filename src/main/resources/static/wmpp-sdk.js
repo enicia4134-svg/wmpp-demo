@@ -10,10 +10,12 @@ window.wmpp = {
     mode: "idle", // idle | ws | sse
     wsRetryCount: 0,
     lastWsCloseAt: 0,
+    manualDisconnect: false,
     dedupeCache: new Map(),
 
     connect: async function (appId, userId, options) {
         this.disconnect()
+        this.manualDisconnect = false
 
         this.opts = {
             appId,
@@ -46,6 +48,7 @@ window.wmpp = {
     },
 
     disconnect: function () {
+        this.manualDisconnect = true
         this._clearReconnect()
         this._clearWsRecovery()
         this._stopHeartbeat()
@@ -129,7 +132,7 @@ window.wmpp = {
             this._stopHeartbeat()
             this.lastWsCloseAt = Date.now()
 
-            if (!this.opts) return
+            if (!this.opts || this.manualDisconnect) return
             if (this.opts.transportPolicy === "ws_only") {
                 this._scheduleWsReconnect()
                 return
@@ -144,6 +147,7 @@ window.wmpp = {
     },
 
     _switchToSse: function (reason) {
+        if (this.manualDisconnect) return
         if (this.mode !== "sse") {
             console.log("WMPP fallback to SSE:", reason)
         }
@@ -181,11 +185,12 @@ window.wmpp = {
     },
 
     _scheduleWsReconnect: function () {
+        if (this.manualDisconnect) return
         this._clearReconnect()
         const delay = this._nextBackoffMs()
         this.reconnectTimer = setTimeout(() => {
             this.reconnectTimer = null
-            if (!this.opts) return
+            if (!this.opts || this.manualDisconnect) return
             this._openWs(false)
         }, delay)
     },
@@ -195,7 +200,7 @@ window.wmpp = {
         if (this.wsRecoveryTimer) return
 
         this.wsRecoveryTimer = setInterval(() => {
-            if (!this.opts) return
+            if (!this.opts || this.manualDisconnect) return
             if (this.mode !== "sse") return
             if (this.ws) return
             this._openWs(false)
@@ -244,6 +249,7 @@ window.wmpp = {
     },
 
     _handleInbound: function (channel, rawData) {
+        if (this.manualDisconnect) return
         const event = this._normalizeEvent(rawData)
         if (this._isDuplicate(event.id)) {
             return

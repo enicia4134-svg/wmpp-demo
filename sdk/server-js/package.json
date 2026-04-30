@@ -1,0 +1,8 @@
+{
+  "name": "wmpp-server-js-sdk",
+  "version": "0.0.1",
+  "description": "WMPP Server SDK (SMSetup style)",
+  "main": "sm_setup.js",
+  "type": "module",
+  "license": "MIT"
+}

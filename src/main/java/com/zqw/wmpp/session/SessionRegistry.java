@@ -3,6 +3,7 @@ package com.zqw.wmpp.session;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zqw.wmpp.reliability.DeliveryTracker;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.socket.CloseStatus;
@@ -11,6 +12,10 @@ import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -33,6 +38,12 @@ public class SessionRegistry {
 
     // Map<AppId, Map<UserId, SessionInfo>>
     private final Map<String, Map<String, SessionInfo>> sessions = new ConcurrentHashMap<>();
+    // Map<AppId, Map<UserId, OfflineWindow>>
+    private final Map<String, Map<String, OfflineWindow>> offlineWindows = new ConcurrentHashMap<>();
+    private static final int OFFLINE_INBOX_LIMIT = 100;
+
+    @Value("${wmpp.offline.message.ttl-minutes:30}")
+    private long offlineMessageTtlMinutes;
 
     public void registerWebSocket(String appId, String userId, WebSocketSession session) {
         Objects.requireNonNull(appId);
@@ -49,6 +60,7 @@ public class SessionRegistry {
 
         // ensure lastHeartbeat updated
         info.touch(clock.millis());
+        flushOfflineWindow(appId, userId);
     }
 
     public void unregisterWebSocket(String appId, String userId, WebSocketSession session) {
@@ -60,6 +72,19 @@ public class SessionRegistry {
             }
             return info.isEmpty() ? null : info;
         });
+        if (appMap.isEmpty()) sessions.remove(appId);
+    }
+
+    public void disconnect(String appId, String userId) {
+        Map<String, SessionInfo> appMap = sessions.get(appId);
+        if (appMap == null) return;
+        SessionInfo info = appMap.remove(userId);
+        if (info != null) {
+            info.closeWebSocketQuietly(CloseStatus.NORMAL);
+            info.completeSseQuietly();
+        }
+        offlineWindows.computeIfAbsent(appId, k -> new ConcurrentHashMap<>())
+                .put(userId, new OfflineWindow(clock.millis()));
         if (appMap.isEmpty()) sessions.remove(appId);
     }
 
@@ -81,6 +106,7 @@ public class SessionRegistry {
                     return old;
                 });
 
+        flushOfflineWindow(appId, userId);
         return emitter;
     }
 
@@ -112,9 +138,17 @@ public class SessionRegistry {
 
     public void pushToUser(String appId, String userId, String message) {
         Map<String, SessionInfo> appMap = sessions.get(appId);
-        if (appMap == null) return;
+        if (appMap == null) {
+            logOfflineStash(appId, userId, message, "no-session-map");
+            stashOffline(appId, userId, message);
+            return;
+        }
         SessionInfo info = appMap.get(userId);
-        if (info == null) return;
+        if (info == null || info.isEmpty()) {
+            logOfflineStash(appId, userId, message, "session-empty");
+            stashOffline(appId, userId, message);
+            return;
+        }
 
         String msgId = extractMsgId(message);
 
@@ -125,6 +159,7 @@ public class SessionRegistry {
                 if (msgId != null) {
                     deliveryTracker.trackSend(appId, userId, msgId, message);
                 }
+                System.out.println("[DIRECT_SEND_SSE] " + appId + "/" + userId + " msg=" + summarize(message));
                 return;
             } catch (IOException ex) {
                 removeSse(appId, userId, info.sseEmitter);
@@ -138,10 +173,15 @@ public class SessionRegistry {
                 if (msgId != null) {
                     deliveryTracker.trackSend(appId, userId, msgId, message);
                 }
+                System.out.println("[DIRECT_SEND_WS] " + appId + "/" + userId + " msg=" + summarize(message));
+                return;
             } catch (IOException ignored) {
                 // ignore
             }
         }
+
+        logOfflineStash(appId, userId, message, "ws-unavailable");
+        stashOffline(appId, userId, message);
     }
 
     public Optional<WebSocketSession> getWebSocket(String appId, String userId) {
@@ -189,6 +229,38 @@ public class SessionRegistry {
         if (appMap.isEmpty()) sessions.remove(appId);
     }
 
+    private void stashOffline(String appId, String userId, String message) {
+        if (message == null || message.isBlank()) return;
+        offlineWindows.computeIfAbsent(appId, k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(userId, k -> new OfflineWindow(clock.millis()))
+                .add(message, clock.millis(), offlineTtlMs());
+        System.out.println("[OFFLINE_STASH] " + appId + "/" + userId + " ttlMin=" + offlineMessageTtlMinutes + " msg=" + summarize(message));
+    }
+
+    private void flushOfflineWindow(String appId, String userId) {
+        Map<String, OfflineWindow> appWindows = offlineWindows.get(appId);
+        if (appWindows == null) return;
+        OfflineWindow window = appWindows.get(userId);
+        if (window == null) return;
+        List<String> batch = window.drainIfFresh(clock.millis(), offlineTtlMs());
+        if (batch.isEmpty()) {
+            System.out.println("[OFFLINE_DROP_TTL] " + appId + "/" + userId + " dropped=all");
+            appWindows.remove(userId);
+            return;
+        }
+        System.out.println("[OFFLINE_FLUSH] " + appId + "/" + userId + " count=" + batch.size());
+        appWindows.remove(userId);
+        for (String msg : batch) {
+            pushToUser(appId, userId, msg);
+        }
+        if (appWindows.isEmpty()) offlineWindows.remove(appId);
+    }
+
+    private long offlineTtlMs() {
+        long mins = Math.max(1L, offlineMessageTtlMinutes);
+        return mins * 60_000L;
+    }
+
     private String extractMsgId(String message) {
         if (message == null || message.isBlank()) return null;
         try {
@@ -201,6 +273,64 @@ public class SessionRegistry {
             return null;
         }
     }
+
+    private String summarize(String message) {
+        if (message == null) return "";
+        String t = message.replace('\n', ' ').trim();
+        return t.length() <= 80 ? t : t.substring(0, 80) + "...";
+    }
+
+    private void logOfflineStash(String appId, String userId, String message, String reason) {
+        System.out.println("[OFFLINE_ROUTE] " + appId + "/" + userId + " reason=" + reason + " msg=" + summarize(message));
+    }
+
+    private static final class OfflineWindow {
+        private final long offlineSinceMs;
+        private final Deque<OfflineMessage> messages = new ArrayDeque<>();
+
+        private OfflineWindow(long offlineSinceMs) {
+            this.offlineSinceMs = offlineSinceMs;
+        }
+
+        private synchronized void add(String payload, long nowMs, long ttlMs) {
+            prune(nowMs, ttlMs);
+            if (messages.size() >= OFFLINE_INBOX_LIMIT) {
+                messages.removeFirst();
+            }
+            messages.addLast(new OfflineMessage(payload, nowMs));
+        }
+
+        private synchronized List<String> drainIfFresh(long nowMs, long ttlMs) {
+            prune(nowMs, ttlMs);
+            if (messages.isEmpty()) return List.of();
+            List<String> out = new ArrayList<>(messages.size());
+            while (!messages.isEmpty()) {
+                out.add(messages.removeFirst().payload());
+            }
+            return out;
+        }
+
+        private void prune(long nowMs, long ttlMs) {
+            if (nowMs - offlineSinceMs > ttlMs) {
+                messages.clear();
+                return;
+            }
+            while (!messages.isEmpty()) {
+                OfflineMessage first = messages.peekFirst();
+                if (first == null) {
+                    messages.removeFirst();
+                    continue;
+                }
+                if (nowMs - first.createdAtMs() > ttlMs) {
+                    messages.removeFirst();
+                    continue;
+                }
+                break;
+            }
+        }
+    }
+
+    private record OfflineMessage(String payload, long createdAtMs) {}
 
     private static final class SessionInfo {
         private volatile WebSocketSession webSocketSession;

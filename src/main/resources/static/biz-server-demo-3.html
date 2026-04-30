@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>业务系统C（systemC）- 消息推送设置页面</title>
+  <style>
+    :root{--bg:#f6fbff;--panel:#ffffff;--line:#a9d9df;--text:#1b2b33;--muted:#5f7984;--ok:#119e68;--warn:#23a8b8;--accent:#1a8fa1}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 10% 8%,rgba(26,143,161,.2),transparent 26%),radial-gradient(circle at 86% 10%,rgba(66,185,104,.18),transparent 24%),radial-gradient(circle at 58% 86%,rgba(58,132,255,.15),transparent 30%),linear-gradient(180deg,#f8fdff 0%,#f0fbff 52%,#f2f6f8 100%);color:var(--text)}
+    .wrap{max-width:1180px;margin:0 auto;padding:24px 16px}.card{background:linear-gradient(160deg,#ffffff,#f1fcff 64%,#eef9f2 100%);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(37,137,150,.16)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-top:14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}h1,h2,h3,p{margin:0}.sub{margin-top:8px;color:var(--muted);line-height:1.75;font-size:13px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #a9d9df;background:linear-gradient(180deg,#ffffff,#f4fcff);color:var(--text)}textarea{min-height:96px;resize:vertical}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}button{padding:10px 14px;border-radius:10px;border:1px solid #1a8fa1;background:linear-gradient(180deg,#ecfbff,#dcf5fa);color:#1b2b33;cursor:pointer}button.good{background:linear-gradient(180deg,#e6fff1,#d5f5e4);border-color:#119e68}
+    pre{margin:0;padding:12px;border-radius:12px;background:#ffffff;border:1px solid #a9d9df;overflow:auto;color:#1b2b33;font-size:12px;line-height:1.6}.log{margin-top:12px;height:320px;overflow:auto;border:1px solid #a9d9df;border-radius:12px;background:linear-gradient(180deg,#ffffff,#f4fcff);padding:8px;font-family:Consolas,monospace;font-size:12px}
+    .line{padding:6px 4px;border-bottom:1px dashed rgba(26,143,161,.2)}.ok{color:#119e68}.sys{color:#1a8fa1}.err{color:#b15b6a}.tag{display:inline-block;padding:5px 10px;border:1px solid #a9d9df;border-radius:999px;color:#1a8fa1;font-size:12px;background:#f2fbff}.tags{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    @media (max-width:920px){.grid,.two,.three{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <span class="tag">业务系统C / 音乐网站</span>
+    <h1 style="margin-top:10px">业务系统C（systemC / 音乐网站）- 消息推送设置页面</h1>
+    <p class="sub">演示第三个业务系统接入同一 WMPP 平台。无论是 Web、桌面端还是移动端，只要客户端登录上线，消息就由平台主动推送到对应 systemC 用户。</p>
+    <div class="tags">
+      <span class="tag">多业务系统并存</span>
+      <span class="tag">客户端形态不限</span>
+      <span class="tag">消息按 appId 严格隔离</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>一、接入说明（SDK 对业务系统无框架要求）</h2>
+        <div class="two" style="margin-top:12px">
+          <div>
+            <h3 style="margin-bottom:8px">JavaScript（服务端）</h3>
+            <pre>import { SMSetup } from "wmpp-server-sdk";
+const sm = new SMSetup();
+sm.setServerUrl("http://localhost:8080");
+sm.setAppKey("systemC");
+sm.setSecretKey("systemC-secret");
+sm.setMessage("短视频平台推荐更新");
+sm.setTargetType("ALL");
+await sm.push();</pre>
+          </div>
+          <div>
+            <h3 style="margin-bottom:8px">Python（服务端）</h3>
+            <pre>from wmpp_server_sdk import SMSetup
+sm = SMSetup()
+sm.set_server_url("http://localhost:8080")
+sm.set_app_key("systemC")
+sm.set_secret_key("systemC-secret")
+sm.set_message("你关注的创作者发布新视频")
+sm.set_target_type("USER")
+sm.set_target_user_id("5001")
+sm.push()</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>二、消息推送设置页面（Server 端）</h2>
+        <div class="three" style="margin-top:12px">
+          <label>业务系统名称<input id="bizName" value="业务系统C（音乐网站）" /></label>
+          <label>平台 Base URL<input id="baseUrl" value="http://localhost:8080" /></label>
+          <label>AppId<input id="appId" value="systemC" readonly /></label>
+        </div>
+        <div class="three" style="margin-top:12px">
+          <label>App SecretKey<input id="secret" value="0acf17aafe2866284a4bd5f5b52af9d3624a9286523a1963" /></label>
+          <label>推送模式
+            <select id="scheduleType" onchange="toggleMode()">
+              <option value="once">单次</option>
+              <option value="repeat">周期</option>
+            </select>
+          </label>
+          <label>推送对象
+            <select id="targetType" onchange="toggleMode()">
+              <option value="broadcast">全部</option>
+              <option value="user">固定用户</option>
+              <option value="users">一组用户</option>
+            </select>
+          </label>
+        </div>
+        <div class="three" style="margin-top:12px">
+          <label id="repeatWrap" style="display:none">周期间隔（秒）<input id="intervalSec" type="number" min="1" value="4" /></label>
+          <label id="userWrap" style="display:none">用户 ID<input id="targetUser" value="5001" placeholder="例如：5001" /></label>
+          <label id="usersWrap" style="display:none">用户 ID 列表<input id="targetUsers" value="5001,5002" placeholder="例如：5001,5002" /></label>
+          <label>推送标题<input id="title" value="创作者上新提醒" /></label>
+          <label>业务场景<input id="scene" value="短视频平台 / 关注推送" /></label>
+        </div>
+        <label style="margin-top:12px">消息内容<textarea id="message">你关注的创作者发布了新作品，点击立即观看。</textarea></label>
+        <div class="toolbar">
+          <button class="good" onclick="sendNow()">发送</button>
+          <button onclick="startRepeatPush()">开始</button>
+          <button onclick="stopRepeat()">停止</button>
+          <button onclick="fillPreset('new_song')">模板：新歌推荐</button>
+          <button onclick="fillPreset('artist_new')">模板：关注歌手上新</button>
+          <button onclick="fillPreset('mention')">模板：@我评论</button>
+          <button onclick="fillPreset('vip')">模板：会员权益</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>三、调用预览</h2>
+        <pre id="previewCode">sm.broadcast("创作者上新提醒｜短视频平台 / 关注推送｜你关注的创作者发布了新作品，点击立即观看。");</pre>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <h2>四、推送日志</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+let timer=null
+function $(id){return document.getElementById(id)}
+function add(text,cls='sys'){const d=document.createElement('div');d.className='line '+cls;d.textContent='['+new Date().toLocaleTimeString()+'] '+text;$('log').prepend(d)}
+function toggleMode(){const target=$('targetType').value,schedule=$('scheduleType').value;$('repeatWrap').style.display=schedule==='repeat'?'flex':'none';$('userWrap').style.display=target==='user'?'flex':'none';$('usersWrap').style.display=target==='users'?'flex':'none';updatePreview()}
+function buildMsg(){return [$('title').value.trim(),$('scene').value.trim(),$('message').value.trim()].filter(Boolean).join('｜')}
+function parseTargets(){const targetType=$('targetType').value;if(targetType==='broadcast') return {targetType,users:[]};if(targetType==='user'){const raw=$('targetUser').value.trim();if(!raw) throw new Error('固定用户模式下，请填写 1 个 userId');if(raw.includes(',')) throw new Error('固定用户模式仅支持单个 userId；多个用户请切换到“一组用户”');return {targetType,users:[raw]};}const users=$('targetUsers').value.split(',').map(s=>s.trim()).filter(Boolean);if(!users.length) throw new Error('一组用户模式下，请填写至少 1 个 userId');return {targetType,users};}
+function buildSnapshot(){const t=parseTargets();return {bizName:$('bizName').value.trim()||'业务系统C',baseUrl:$('baseUrl').value.trim(),appId:$('appId').value.trim(),appSecret:$('secret').value.trim(),title:$('title').value.trim(),msg:buildMsg(),targetType:t.targetType,users:t.users};}
+function updatePreview(){try{const s=buildSnapshot();let code='';if(s.targetType==='broadcast') code=`sm.broadcast("${s.msg}");`;if(s.targetType==='user') code=`sm.pushUser("${s.users[0]||''}", "${s.msg}");`;if(s.targetType==='users') code=`sm.pushUsers([${s.users.map(u=>'"'+u+'"').join(', ')}], "${s.msg}");`;if($('scheduleType').value==='repeat') code='// 每 '+$('intervalSec').value+' 秒执行一次\n'+code;$('previewCode').textContent=code;}catch(e){$('previewCode').textContent='// 参数未就绪: '+e.message;}}
+async function sendWithSnapshot(s){let url='';const opt={method:'POST',headers:{'X-App-Id':s.appId,'X-App-Secret-Key':s.appSecret}};if(s.targetType==='broadcast'){url=s.baseUrl+'/push/broadcast?message='+encodeURIComponent(s.msg);}else if(s.targetType==='user'){url=s.baseUrl+'/push/user?userId='+encodeURIComponent(s.users[0])+'&message='+encodeURIComponent(s.msg);}else{url=s.baseUrl+'/push/users';opt.headers['Content-Type']='application/json';opt.body=JSON.stringify({userIds:s.users,message:s.msg});}
+add(`[SEND] app=${s.appId}, type=${s.targetType}, users=${s.users.join('|')||'ALL'}, title=${s.title}, msg=${s.msg.slice(0,48)}`,'sys');
+const resp=await fetch(url,opt);const text=await resp.text();if(!resp.ok) throw new Error(text||('HTTP '+resp.status));return text;}
+async function sendNow(){try{const s=buildSnapshot();const text=await sendWithSnapshot(s);add(s.bizName+' 已发送消息：'+text,'ok')}catch(e){add('发送失败：'+e.message,'err')}}
+async function startRepeatPush(){stopRepeat(false);if($('scheduleType').value!=='repeat'){$('scheduleType').value='repeat';toggleMode()}try{const snapshot=buildSnapshot();const interval=Math.max(1,Number($('intervalSec').value||4))*1000;const run=async()=>{try{const text=await sendWithSnapshot(snapshot);add(snapshot.bizName+' 周期推送成功：'+text,'ok')}catch(e){add('周期推送失败：'+e.message,'err')}};await run();timer=setInterval(run,interval);add('已开始周期推送（参数已锁定），周期间隔 '+(interval/1000)+' 秒','sys')}catch(e){add('开始周期推送失败：'+e.message,'err')}}
+function stopRepeat(show=true){if(timer){clearInterval(timer);timer=null;if(show) add('已停止周期推送','sys')}}
+function fillPreset(kind){if(kind==='new_song'){$('title').value='新歌推荐';$('scene').value='音乐网站 / 个性化推荐';$('message').value='为你推荐的新歌已上线，点击立即播放。'}if(kind==='artist_new'){$('title').value='关注歌手上新';$('scene').value='音乐网站 / 关注动态';$('message').value='你关注的歌手发布了新专辑，点击查看最新曲目。'}if(kind==='mention'){$('title').value='@我评论提醒';$('scene').value='音乐网站 / 社区互动';$('message').value='有人在乐评区@了你，点击查看并回复。'}if(kind==='vip'){$('title').value='会员权益提醒';$('scene').value='音乐网站 / 会员通知';$('message').value='你的会员权益已更新，无损音质与下载特权现可使用。'}updatePreview();add('已填充模板：'+kind)}
+['title','scene','message','targetUser','targetUsers','intervalSec','targetType','scheduleType','baseUrl','appId','secret'].forEach(id=>$(id).addEventListener('input',updatePreview));toggleMode();updatePreview();add('业务系统C 设置页已就绪：发送参数以点击时输入框为准')
+</script>
+</body>
+</html>

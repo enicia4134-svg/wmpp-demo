@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>租户控制台</title>
+  <style>
+    :root{--bg:#f4fff8;--panel:#ffffff;--line:#a8d8bf;--text:#1f2f28;--muted:#5f7a6e}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 12% 10%,rgba(20,168,107,.2),transparent 28%),radial-gradient(circle at 88% 12%,rgba(47,116,192,.16),transparent 24%),linear-gradient(180deg,#f8fff9 0,#f2fbf5 52%,#f1f3f5 100%);color:var(--text)}
+    .wrap{max-width:1160px;margin:0 auto;padding:24px 16px}.panel{background:linear-gradient(160deg,#ffffff,#f1fbf5 68%,#eef6ff 100%);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(43,134,96,.14)}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}h1,h2,p{margin:0}.sub{margin-top:8px;color:var(--muted);line-height:1.7;font-size:13px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}input,button,pre{font:inherit}input{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #a8d8bf;background:linear-gradient(180deg,#ffffff,#f6fff9);color:var(--text)}button{padding:10px 14px;border-radius:10px;border:1px solid #14a86b;background:linear-gradient(180deg,#ebfff3,#daf7e7);color:#1f2f28;cursor:pointer}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar{margin-top:12px;display:flex;gap:10px;flex-wrap:wrap}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}.card{padding:14px;border:1px solid #a8d8bf;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f7fff9)}.num{font-size:28px;font-weight:700;margin-top:6px}
+    .table{margin-top:12px;border:1px solid #a8d8bf;border-radius:12px;overflow:auto;background:#ffffff}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:10px;border-bottom:1px solid rgba(20,168,107,.14);text-align:left}th{color:#1f7f58}pre{margin:0;padding:12px;border-radius:12px;background:#ffffff;border:1px solid #a8d8bf;overflow:auto;color:#1f2f28;font-size:12px;line-height:1.6}
+    @media (max-width:980px){.grid,.three,.cards{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h1>租户控制台（客户后台）</h1>
+    <p class="sub">客户只能查看自己的租户数据和自己的推送统计，不能看到其他业务系统。可用于查询“总目标数、已推送、成功/失败、进度”。</p>
+    <div class="three" style="margin-top:12px">
+      <label>AppId<input id="appId" value="systemA" /></label>
+      <label>App SecretKey<input id="secret" value="systemA-secret" /></label>
+      <label>当前身份<input value="Tenant / Customer" readonly /></label>
+    </div>
+    <div class="toolbar"><button onclick="loadTenant()">登录并查看我的租户数据</button><button onclick="loadProgress()">查询推送进度</button><span id="liveState" class="sub">自动刷新：未启动</span></div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="sub">我的 AppId</div><div id="mAppId" class="num">-</div></div>
+    <div class="card"><div class="sub">当前在线终端数</div><div id="mOnline" class="num">-</div></div>
+    <div class="card"><div class="sub">承载节点数</div><div id="mNodes" class="num">-</div></div>
+    <div class="card"><div class="sub">推送权限</div><div id="mAllow" class="num">-</div></div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="sub">总目标数</div><div id="pTotal" class="num">-</div></div>
+    <div class="card"><div class="sub">已推送</div><div id="pDone" class="num">-</div></div>
+    <div class="card"><div class="sub">成功数</div><div id="pOk" class="num">-</div></div>
+    <div class="card"><div class="sub">失败数 / 进度</div><div id="pFail" class="num">-</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>我的节点连接分布</h2>
+      <div class="table"><table><thead><tr><th>Pusher 节点</th><th>承载连接</th></tr></thead><tbody id="nodeBody"></tbody></table></div>
+    </div>
+    <div class="panel">
+      <h2>我的在线路由</h2>
+      <div class="table"><table><thead><tr><th>UserId</th><th>Pusher</th></tr></thead><tbody id="routeBody"></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <div class="row" style="justify-content:space-between"><h2>实时推送明细（仅本租户）</h2><span id="rtTs" class="sub">-</span></div>
+    <div class="table"><table><thead><tr><th>时间</th><th>目标类型</th><th>消息内容</th><th>发送给谁</th><th>目标数</th><th>成功</th><th>失败</th><th>进度</th></tr></thead><tbody id="msgBody"></tbody></table></div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h2>我的 SDK 接入配置（统一口径：SMSetup）</h2>
+    <pre id="sdkBox">等待加载...</pre>
+  </div>
+</div>
+<script>
+function $(id){return document.getElementById(id)}
+async function req(url,opt){const r=await fetch(url,opt);const t=await r.text();if(!r.ok) throw new Error(t||('HTTP '+r.status));try{return t?JSON.parse(t):null}catch{return t}}
+let rtTimer=null
+function headers(){return {'X-App-Id':$('appId').value.trim(),'X-App-Secret-Key':$('secret').value.trim()}}
+function renderMessages(rows){if(!rows||!rows.length){$('msgBody').innerHTML='<tr><td colspan="8">暂无消息明细</td></tr>';return}$('msgBody').innerHTML=rows.map(r=>`<tr><td>${r.createdAtText||'-'}</td><td>${r.targetType||'-'}</td><td>${(r.message||'').slice(0,80)}</td><td>${(r.targets||[]).join(', ')||'-'}</td><td>${r.targetCount}</td><td>${r.successCount}</td><td>${r.failedCount}</td><td>${r.percent}%</td></tr>`).join('')}
+async function loadTenant(){try{const me=await req('/tenant/me',{headers:headers()});$('mAppId').textContent=me.appId;$('mOnline').textContent=me.onlineClients;$('mNodes').textContent=me.nodeCount;$('mAllow').textContent=me.allowPush;const nodes=Object.entries(me.nodeConnections||{});$('nodeBody').innerHTML=nodes.length?nodes.map(([k,v])=>`<tr><td>${k}</td><td>${v}</td></tr>`).join(''):'<tr><td colspan="2">暂无节点数据</td></tr>';const routes=await req('/tenant/routes',{headers:headers()});const rows=Object.entries(routes||{});$('routeBody').innerHTML=rows.length?rows.map(([u,p])=>`<tr><td>${u}</td><td>${p}</td></tr>`).join(''):'<tr><td colspan="2">当前无在线路由</td></tr>';const sdk=await req('/tenant/sdk-config',{headers:headers()});$('sdkBox').textContent=JSON.stringify(sdk,null,2)}catch(e){alert('加载失败：'+e.message)}}
+async function loadRealtime(){try{const rt=await req('/tenant/realtime',{headers:headers()});const p=rt.progress||{};$('pTotal').textContent=p.totalTarget??'-';$('pDone').textContent=p.pushed??'-';$('pOk').textContent=p.success??'-';$('pFail').textContent=`${p.failed??'-'} / ${p.percent??0}%`;$('rtTs').textContent='最近刷新：'+new Date(rt.ts||Date.now()).toLocaleTimeString();renderMessages(rt.latestMessages||[])}catch(e){console.warn('实时刷新失败',e.message)}}
+function startRealtime(){if(rtTimer) clearInterval(rtTimer);loadRealtime();$('liveState').textContent='自动刷新：每 3 秒';rtTimer=setInterval(loadRealtime,3000)}
+window.addEventListener('load',()=>{loadTenant();startRealtime()})
+</script>
+</body>
+</html>

@@ -34,6 +34,7 @@ public class AppRegistryService {
         if (!loadFromFile()) {
             register(new AppInfo("systemA", "systemA-secret", true));
             register(new AppInfo("systemB", "systemB-secret", true));
+            register(new AppInfo("systemC", "systemC-secret", true));
             persistQuietly();
         }
     }
@@ -124,4 +125,3 @@ public class AppRegistryService {
         }
     }
 }
-

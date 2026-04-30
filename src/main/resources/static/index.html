@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WMPP Demo Navigator</title>
+  <style>
+    :root{--bg:#fffaf4;--panel:#ffffff;--line:#e2c7a0;--text:#3b2b1f;--muted:#7f6955;--cyan:#4d8fd8;--green:#3aaa76;--gold:#d9a14f}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;color:var(--text);background:radial-gradient(circle at 10% 10%,rgba(217,161,79,.2),transparent 30%),radial-gradient(circle at 88% 12%,rgba(77,143,216,.18),transparent 30%),radial-gradient(circle at 56% 84%,rgba(58,170,118,.16),transparent 30%),linear-gradient(180deg,#fffdf8,#fff8ef)}
+    .wrap{max-width:1280px;margin:0 auto;padding:28px 18px 34px}.hero,.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}.grid{margin-top:16px}.panel{background:linear-gradient(160deg,#ffffff,#fff8ef 74%,#f6fbff 100%);border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 14px 30px rgba(160,124,84,.15)}h1,h2,h3,p{margin:0}.eye{display:inline-block;padding:6px 12px;border-radius:999px;border:1px solid rgba(217,161,79,.45);font-size:12px;color:#9a6a27;background:#fff3df}.sub{margin-top:10px;color:var(--muted);line-height:1.8;font-size:13px}.links{display:grid;gap:12px;margin-top:14px}.entry{display:block;text-decoration:none;color:var(--text);padding:16px;border-radius:16px;border:1px solid rgba(226,199,160,.9);background:linear-gradient(180deg,#ffffff,#fffaf2)}.entry:hover{border-color:#d9a14f}.entry small{display:block;color:var(--muted);margin-top:6px;line-height:1.6}.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.mini{padding:14px;border-radius:16px;background:linear-gradient(180deg,#ffffff,#fff6ea);border:1px solid rgba(226,199,160,.9)}.mini .n{font-size:28px;font-weight:700;margin-top:6px}.steps{display:grid;gap:10px;margin-top:12px}.step{padding:14px;border-radius:14px;background:linear-gradient(180deg,#ffffff,#f8fbff);border:1px solid rgba(226,199,160,.9);line-height:1.8;color:var(--muted);font-size:13px}.mono{font-family:Consolas,monospace;color:#4d8fd8}.pill{display:inline-block;padding:4px 10px;border-radius:999px;background:#fff2df;border:1px solid rgba(217,161,79,.55);font-size:12px;margin:4px 6px 0 0;color:#9a6a27}.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}@media (max-width:980px){.hero,.grid,.cards{grid-template-columns:1fr}}</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <div class="panel">
+      <span class="eye">WMPP Demo Entry</span>
+      <h1 style="margin-top:12px">WMPP 页面入口导航页</h1>
+      <p class="sub">这个页面用于答辩时快速进入不同角色视角：你的消息推送平台、业务系统 Server、业务系统终端 Client、租户控制台、平台 Admin 控制台。重点要区分清楚：WMPP 是独立的消息推送服务，业务系统只是在 Server 和 Client 端接入你的 SDK。</p>
+      <div class="row">
+        <span class="pill">WMPP 平台 = 独立服务</span>
+        <span class="pill">业务系统 Server 接入 SDK</span>
+        <span class="pill">业务系统 Client 登录后被动接收</span>
+        <span class="pill">不同业务系统互相隔离</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="cards">
+        <div class="mini"><div class="sub">角色视角</div><div class="n">5</div></div>
+        <div class="mini"><div class="sub">演示页面</div><div class="n">8</div></div>
+        <div class="mini"><div class="sub">核心主题</div><div class="n" style="font-size:20px">SDK 接入式推送服务</div></div>
+        <div class="mini"><div class="sub">平台亮点</div><div class="n" style="font-size:20px">多租户隔离 + 负载均衡</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="panel">
+      <h2>一、页面入口</h2>
+      <div class="links">
+        <a class="entry" href="/biz-server-demo.html" target="_blank">
+          业务系统A - 消息推送设置页面（systemA / 电子书网站）
+          <small>只支持单次推送；用于展示“业务系统 Server 接入 SDK 后完成一次推送”的标准流程。</small>
+        </a>
+        <a class="entry" href="/biz-server-demo-2.html" target="_blank">
+          业务系统B - 消息推送设置页面（systemB / 电商网站）
+          <small>支持广播、指定用户、指定用户组以及周期推送；用于展示多策略混合能力。</small>
+        </a>
+        <a class="entry" href="/biz-server-demo-3.html" target="_blank">
+          业务系统C - 消息推送设置页面（systemC / 音乐网站）
+          <small>支持广播、定向与周期推送，强调跨终端一致接收能力。</small>
+        </a>
+        <a class="entry" href="/biz-client-demo.html?appId=systemA&userId=1001" target="_blank">
+          业务系统 Client 接收页（systemA / 1001）
+          <small>模拟业务系统用户登录上线后接入 <span class="mono">client sdk</span>，只负责被动接收平台推送消息。</small>
+        </a>
+        <a class="entry" href="/biz-client-demo.html?appId=systemA&userId=2002" target="_blank">
+          业务系统 Client 接收页（systemA / 2002）
+          <small>用于演示同一业务系统下多个客户端同时在线并同时收到消息。</small>
+        </a>
+        <a class="entry" href="/biz-client-demo.html?appId=systemB&userId=3003" target="_blank">
+          业务系统 Client 接收页（systemB / 3003）
+          <small>用于演示不同业务系统之间的数据隔离与消息隔离。</small>
+        </a>
+        <a class="entry" href="/biz-client-demo.html?appId=systemC&userId=5001" target="_blank">
+          业务系统 Client 接收页（systemC / 5001）
+          <small>用于演示短视频业务系统客户端登录上线后，被动接收 systemC 消息。</small>
+        </a>
+        <a class="entry" href="/tenant-console.html" target="_blank">
+          租户控制台（客户后台）
+          <small>客户登录后只能看自己的租户数据、自己的在线终端、自己的 SDK 配置和自己的路由，不可见其他客户数据。</small>
+        </a>
+        <a class="entry" href="/admin-console.html" target="_blank">
+          Admin 控制台（平台总后台）
+          <small>平台管理员查看全部租户、全部在线数据、节点承载、全量路由以及负载均衡演示区。</small>
+        </a>
+        <a class="entry" href="/wmpp-architecture.html" target="_blank">
+          WMPP 架构与高并发说明（论文重点页）
+          <small>集中展示微服务拆分、负载均衡、pusher 池、消息存储、监控统计、可扩展能力与论文可写点。</small>
+        </a>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>二、推荐答辩打开顺序</h2>
+      <div class="steps">
+        <div class="step">1. 先说明：WMPP 本身不是业务系统，而是独立消息推送平台；业务系统只需要在 Server 端引入 SDK（new 对象 + set 配置 + push），在 Client 端登录后 connect 并被动接收。</div>
+        <div class="step">2. 打开 <span class="mono">/biz-server-demo.html</span>，讲“业务系统1 的后端如何引入 server sdk 并配置推送规则”。</div>
+        <div class="step">3. 再打开多个 Client 页：<span class="mono">systemA/1001</span>、<span class="mono">systemA/2002</span>、<span class="mono">systemB/3003</span>，讲“终端一登录就只负责接收消息”。</div>
+        <div class="step">4. 在业务系统1 页面做广播、固定用户推送、一组用户推送，观察不同 Client 的接收差异。</div>
+        <div class="step">5. 再打开 <span class="mono">/biz-server-demo-2.html</span>，说明这是另一个业务系统；虽然调用 SDK 方式完全一样，但由于 appId 不同，消息不会发送到 systemA。</div>
+        <div class="step">6. 最后展示 <span class="mono">/tenant-console.html</span> 和 <span class="mono">/admin-console.html</span>，说明租户隔离、全局监控、高并发与负载均衡能力。</div>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

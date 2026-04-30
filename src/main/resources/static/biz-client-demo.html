@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>业务系统 Client 上线接收页</title>
+  <script src="wmpp-sdk.js"></script>
+  <style>
+    :root{--bg:#f4f8ff;--panel:#ffffff;--line:#b9c8e8;--text:#1f2a36;--muted:#5f7388;--ok:#14a86b;--warn:#f39c35;--recv:#0f9f76}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 10% 8%,rgba(73,132,255,.23),transparent 28%),radial-gradient(circle at 90% 12%,rgba(255,117,150,.2),transparent 28%),radial-gradient(circle at 55% 84%,rgba(58,201,147,.2),transparent 30%),linear-gradient(180deg,#f8fbff 0%,#f3f7ff 52%,#f1f3f8 100%);color:var(--text)}
+    .wrap{max-width:1040px;margin:0 auto;padding:24px 16px}.card{background:linear-gradient(160deg,#ffffff,#f4f7ff 62%,#eef7f4 100%);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(75,110,176,.16)}
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;margin-top:14px}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row+.row{margin-top:10px}h1,h2,p{margin:0}.sub{margin-top:8px;color:var(--muted);line-height:1.75;font-size:13px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);flex:1}input,select,button{font:inherit}input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #b9c8e8;background:linear-gradient(180deg,#ffffff,#f7fbff);color:var(--text)}button{padding:10px 14px;border-radius:10px;border:1px solid #4b84d6;background:linear-gradient(180deg,#eef5ff,#dfeeff);color:#203040;cursor:pointer}button.good{background:linear-gradient(180deg,#e8fff1,#d6f7e5);border-color:#14a86b}
+    .status{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;border:1px solid #b9c8e8;background:linear-gradient(180deg,#f3f8ff,#eaf2ff);font-size:12px}.dot{width:8px;height:8px;border-radius:50%;background:currentColor}.ok{color:#14a86b}.warn{color:#4b84d6}
+    .tags{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.tag{padding:6px 10px;border:1px solid #b9c8e8;border-radius:999px;color:#3766a5;font-size:12px;background:linear-gradient(180deg,#f8fbff,#eff6ff)}
+    .log{margin-top:14px;height:420px;overflow:auto;border:1px solid #b9c8e8;border-radius:12px;background:linear-gradient(180deg,#ffffff,#f8fbff);padding:8px;font-family:Consolas,monospace;font-size:12px}.line{padding:7px 4px;border-bottom:1px dashed rgba(75,132,214,.25)}.recv{color:var(--recv)}.sys{color:#4b84d6}.err{color:#b14f5f}
+    .phone{border:1px solid #b9c8e8;border-radius:28px;padding:14px;background:linear-gradient(165deg,#f8fbff,#f1f3ff 60%,#ecf8f2)}.screen{border:1px solid #d3def3;border-radius:18px;padding:16px;background:#ffffff}.badge{display:inline-block;padding:5px 10px;border-radius:999px;background:linear-gradient(180deg,#f1f7ff,#e6f1ff);border:1px solid #b9c8e8;font-size:12px;color:#3766a5}
+    @media (max-width:820px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>业务系统 Client 上线接收页</h1>
+    <p class="sub">这个页面模拟业务系统自己的终端客户端。终端只需要：<b>① 引入 client sdk ② 用户登录时调用 connect/login ③ 被动监听消息</b>。后续消息由 WMPP 平台主动推送过来。它不是聊天窗口，只负责“被动接收消息”。</p>
+    <div class="tags">
+      <span class="tag">业务系统终端</span>
+      <span class="tag">引入 SDK 后登录即连接</span>
+      <span class="tag">只接收，不发送</span>
+      <span class="tag">同一系统多个 Client 可同时接收</span>
+      <span class="tag">不同系统消息严格隔离</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>用户登录 / 用户上线</h2>
+      <div class="tags" style="margin-top:10px">
+        <span class="tag">离线 TTL 当前值：1 分钟</span>
+        <span class="tag">离线补投：开启</span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>业务系统 AppId
+          <select id="appId" onchange="syncSecret()">
+            <option value="systemA">systemA（电商）</option>
+            <option value="systemB">systemB（内容社区）</option>
+            <option value="systemC">systemC（短视频）</option>
+          </select>
+        </label>
+        <label>App SecretKey
+          <input id="secret" value="systemA-secret" />
+        </label>
+      </div>
+      <div class="row">
+        <label>业务用户 UserId
+          <input id="userId" value="1001" />
+        </label>
+        <label>接入方式
+          <select id="transport">
+            <option value="ws_primary_sse_fallback">WebSocket 优先 + SSE 降级</option>
+            <option value="ws_only">仅 WebSocket</option>
+            <option value="sse_only">仅 SSE</option>
+          </select>
+        </label>
+      </div>
+      <div class="row">
+        <button class="good" onclick="loginAndConnect()">用户登录并上线</button>
+        <button onclick="disconnectClient()">用户下线 / 断开</button>
+        <span id="status" class="status warn"><span class="dot"></span>未上线</span>
+      </div>
+      <p class="sub">终端职责非常简单：业务系统用户一登录，客户端立即连接 WMPP 推送平台，然后等待平台把消息主动推送过来。客户端不关心其他业务系统，也不会收到其他系统的消息。</p>
+    </div>
+
+    <div class="card phone">
+      <div class="screen">
+        <span class="badge">终端视角</span>
+        <h2 style="margin-top:10px">用户上线状态</h2>
+        <p class="sub" id="terminalInfo">当前尚未登录业务系统。</p>
+        <div class="sub" style="margin-top:14px">
+          推荐同时打开多个窗口：<br/>
+          - systemA / 1001（电商）<br/>
+          - systemA / 2002（电商）<br/>
+          - systemB / 3003（内容社区）<br/>
+          - systemC / 5001（短视频）<br/><br/>
+          再去业务系统 Server 推送设置页操作：<br/>
+          1) 广播：同系统多个 Client 同时收到；<br/>
+          2) 指定用户：只有目标用户收到；<br/>
+          3) 跨系统隔离：systemA 推送不会到 systemB，反之亦然。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="row" style="justify-content:space-between"><h2>被动接收消息</h2><button onclick="clearLog()">清空消息记录</button></div>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+<script>
+let connected=false
+const qs=new URLSearchParams(location.search)
+const secrets={systemA:'systemA-secret',systemB:'systemB-secret',systemC:'0acf17aafe2866284a4bd5f5b52af9d3624a9286523a1963'}
+function $(id){return document.getElementById(id)}
+function add(text,cls='sys'){const d=document.createElement('div');d.className='line '+cls;d.textContent='['+new Date().toLocaleTimeString()+'] '+text;$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
+function setStatus(text,ok){$('status').className='status '+(ok?'ok':'warn');$('status').innerHTML='<span class="dot"></span>'+text}
+function syncSecret(){const app=$('appId').value;if(secrets[app]) $('secret').value=secrets[app]}
+function clearLog(){$('log').innerHTML=''}
+function updateTerminalInfo(){const appId=$('appId').value.trim(),userId=$('userId').value.trim();$('terminalInfo').textContent=connected?('业务系统用户 '+userId+' 已登录 '+appId+'，正在等待平台主动推送消息。'):('当前终端未上线。上线后将以 '+appId+' / '+userId+' 身份接收消息。')}
+function loginAndConnect(){const appId=$('appId').value.trim(),userId=$('userId').value.trim(),transportPolicy=$('transport').value;if(!appId||!userId){add('appId / userId 不能为空','err');return}wmpp.connect(appId,userId,{transportPolicy,onMessage:({body,raw})=>{const text=body&&body.payload?body.payload:raw;add('平台推送到达（'+appId+'/'+userId+'）-> '+text,'recv')}});connected=true;setStatus('已上线 '+appId+'/'+userId,true);updateTerminalInfo();add('业务系统客户端登录成功：已通过 SDK 连接 WMPP 平台 -> '+appId+'/'+userId+' ('+transportPolicy+')')}
+function disconnectClient(){wmpp.disconnect();connected=false;setStatus('未上线',false);updateTerminalInfo();add('终端已下线，停止接收消息（连接已主动断开）')}
+window.addEventListener('load',()=>{if(qs.get('appId')) $('appId').value=qs.get('appId');if(qs.get('userId')) $('userId').value=qs.get('userId');syncSecret();updateTerminalInfo();add('终端已就绪：用户登录 -> 用户上线 -> 被动接收消息（仅接收本系统消息）');if(qs.get('autoLogin')==='1'){loginAndConnect()}})
+</script>
+</body>
+</html>

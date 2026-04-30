@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WMPP 架构与高并发说明</title>
+  <style>
+    :root{--bg:#f7f9ff;--panel:#ffffff;--line:#c1cfe8;--text:#1f2a36;--muted:#5f7388;--ok:#14a86b;--warn:#f39c35}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 12% 10%,rgba(73,132,255,.2),transparent 30%),radial-gradient(circle at 88% 12%,rgba(243,156,53,.16),transparent 28%),linear-gradient(180deg,#fafdff 0%,#f2f7ff 56%,#f2f4f7 100%);color:var(--text)}
+    .wrap{max-width:1240px;margin:0 auto;padding:24px 16px}.card{background:linear-gradient(160deg,#ffffff,#f4f8ff 68%,#f7fbff 100%);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:0 10px 24px rgba(75,110,176,.14)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.full{margin-top:12px}h1,h2,h3,p{margin:0}.sub{margin-top:8px;color:var(--muted);line-height:1.75;font-size:13px}
+    .tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.tag{border:1px solid #c1cfe8;padding:4px 10px;border-radius:999px;font-size:12px;color:#3766a5;background:#f3f8ff}
+    .node{padding:12px;border-radius:12px;border:1px dashed #9eb6dc;background:#f7fbff}.mono{font-family:Consolas,monospace;color:#3766a5}
+    ul{margin:8px 0 0 18px;color:var(--muted);line-height:1.8}.metric{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}.m{padding:12px;border-radius:12px;border:1px solid #c1cfe8;background:#f7fbff}.n{font-size:22px;font-weight:700;margin-top:6px}
+    @media (max-width:980px){.grid,.metric{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>WMPP 架构与论文重点说明</h1>
+    <p class="sub">本页用于论文与答辩说明：严格区分 <b>WMPP 推送基础设施</b> 与 <b>业务系统</b>。业务系统只接入 SDK；WMPP 负责高并发推送、存储转发、负载均衡、监控统计与安全隔离。</p>
+    <div class="tags">
+      <span class="tag">系统边界清晰</span>
+      <span class="tag">高并发</span>
+      <span class="tag">负载均衡</span>
+      <span class="tag">多租户隔离</span>
+      <span class="tag">可观测性</span>
+    </div>
+  </div>
+
+  <div class="grid full">
+    <div class="card">
+      <h2>1. 系统分层（论文主体）</h2>
+      <div class="node" style="margin-top:10px">
+        <div><b>业务系统层</b>（电商/社区/短视频）</div>
+        <div class="sub">Server：引入 SDK 发起推送请求；Client：登录上线后被动接收。</div>
+      </div>
+      <div class="node" style="margin-top:10px">
+        <div><b>WMPP 网关与鉴权层</b></div>
+        <div class="sub">统一入口 API、appId/appSecret 验证、租户隔离校验。</div>
+      </div>
+      <div class="node" style="margin-top:10px">
+        <div><b>推送调度层（Scheduler）</b></div>
+        <div class="sub">按策略分配到 pusher 实例：轮询 / 最小连接数。</div>
+      </div>
+      <div class="node" style="margin-top:10px">
+        <div><b>推送执行层（Pusher Pool）</b></div>
+        <div class="sub">多个实例横向扩展，承载 WebSocket/SSE 长连接与消息下发。</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. 高并发与扩展策略</h2>
+      <ul>
+        <li>基础能力：<b>多 pusher 实例 + 负载均衡</b>，避免单点瓶颈。</li>
+        <li>扩展能力：支持自动伸缩策略（阈值配置），按负载动态调整实例数。</li>
+        <li>削峰能力（可扩展）：引入消息队列（Kafka/RabbitMQ）实现异步缓冲。</li>
+        <li>故障隔离（可扩展）：断路器/熔断，单实例故障不影响整体。</li>
+      </ul>
+      <h3 style="margin-top:10px">容器化建议</h3>
+      <p class="sub">每个 pusher 对应一个容器实例，可动态启动/停止，实现资源按需分配。</p>
+    </div>
+  </div>
+
+  <div class="grid full">
+    <div class="card">
+      <h2>3. 消息存储与转发（按场景选型）</h2>
+      <ul>
+        <li><b>MySQL</b>：业务配置、租户信息、推送任务元数据。</li>
+        <li><b>Redis</b>：在线会话、热点路由、短期状态缓存。</li>
+        <li><b>MongoDB（可选）</b>：灵活结构的消息记录与回执数据。</li>
+        <li><b>对象存储 MinIO（可选）</b>：图片/文件等二进制消息体。</li>
+      </ul>
+      <p class="sub">消息可按“活动期保留、过期清理”策略管理，降低长期存储成本。</p>
+    </div>
+
+    <div class="card">
+      <h2>4. 监控统计与可视化</h2>
+      <ul>
+        <li>业务系统侧：查询“已发送/已送达/失败数”等本租户统计。</li>
+        <li>平台管理员侧：查看所有租户总量、并发趋势、实例负载。</li>
+        <li>论文可给出压力测试：单实例 vs 多实例 的响应时间与吞吐对比。</li>
+      </ul>
+      <div class="metric">
+        <div class="m"><div class="sub">在线连接数</div><div class="n">实时</div></div>
+        <div class="m"><div class="sub">发送成功率</div><div class="n">可追踪</div></div>
+        <div class="m"><div class="sub">Pusher 实例数</div><div class="n">可扩容</div></div>
+        <div class="m"><div class="sub">平均延迟</div><div class="n">可观测</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card full">
+    <h2>5. 压力测试数据模板（论文核心证据）</h2>
+    <p class="sub">建议使用 JMeter 或 k6，模拟 1 万连接并推送，填入以下对比数据：</p>
+    <div class="sub" style="margin-top:10px;overflow:auto">
+      <table style="width:100%;border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="border:1px solid #48659a;padding:8px;text-align:left">Pusher实例数</th>
+            <th style="border:1px solid #48659a;padding:8px;text-align:left">吞吐量(msg/s)</th>
+            <th style="border:1px solid #48659a;padding:8px;text-align:left">平均响应时间(ms)</th>
+            <th style="border:1px solid #48659a;padding:8px;text-align:left">错误率(%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td style="border:1px solid #48659a;padding:8px">1</td><td style="border:1px solid #48659a;padding:8px">待测</td><td style="border:1px solid #48659a;padding:8px">待测</td><td style="border:1px solid #48659a;padding:8px">待测</td></tr>
+          <tr><td style="border:1px solid #48659a;padding:8px">4</td><td style="border:1px solid #48659a;padding:8px">待测</td><td style="border:1px solid #48659a;padding:8px">待测</td><td style="border:1px solid #48659a;padding:8px">待测</td></tr>
+          <tr><td style="border:1px solid #48659a;padding:8px">8</td><td style="border:1px solid #48659a;padding:8px">待测</td><td style="border:1px solid #48659a;padding:8px">待测</td><td style="border:1px solid #48659a;padding:8px">待测</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card full">
+    <h2>6. 论文可直接引用的核心结论</h2>
+    <p class="sub">WMPP 通过“配置模块与推送模块分离、pusher 池横向扩展、基础负载均衡策略、租户级鉴权隔离、可观测统计接口”实现了面向多业务系统的可扩展消息推送基础设施。业务系统仅需引入 SDK 即可完成接入，客户端形态和业务语言不受限制。</p>
+    <p class="sub" style="margin-top:8px">关键词：<span class="mono">Microservice / Load Balancer / Pusher Pool / Multi-tenant Isolation / Observability</span></p>
+  </div>
+</div>
+</body>
+</html>

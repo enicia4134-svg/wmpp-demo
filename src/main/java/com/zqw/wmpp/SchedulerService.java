@@ -5,6 +5,7 @@ import com.zqw.wmpp.scheduler.PusherClient;
 import com.zqw.wmpp.scheduler.RoundRobinStrategy;
 import com.zqw.wmpp.scheduler.SchedulerStrategy;
 import com.zqw.wmpp.registry.RegistryClient;
+import com.zqw.wmpp.reliability.PushProgressService;
 import com.zqw.wmpp.role.WmppRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zqw.wmpp.session.SessionRegistry;
@@ -42,6 +43,9 @@ public class SchedulerService {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private PushProgressService pushProgressService;
+
     @Value("${wmpp.scheduler.strategy:rr}")
     private String strategyName;
 
@@ -70,6 +74,7 @@ public class SchedulerService {
             for (String pusherId : pusherIds) {
                 withRetry("broadcast", appId, pusherId, () -> pusherClient.broadcast(pusherId, appId, payload));
             }
+            pushProgressService.recordSuccess(appId, pusherIds.size());
             System.out.println("Broadcast fanout completed: appId=" + appId + ", nodes=" + pusherIds.size());
             return;
         }
@@ -77,16 +82,26 @@ public class SchedulerService {
         // mono
         String payload = buildMessageEnvelope("broadcast", message);
         sessionRegistry.broadcast(appId, payload);
+        pushProgressService.recordSuccess(appId, Math.max(1, sessionRegistry.getOnlineCount(appId)));
     }
 
     public void dispatchUser(String appId, String userId, String msg) {
         String payload = buildMessageEnvelope("notification", "【通知】" + msg);
-        if (role == WmppRole.scheduler) {
-            String pusherId = registryClient.lookupPusher(appId, userId);
-            if (pusherId == null || pusherId.isBlank()) return;
-            withRetry("user", appId, pusherId, () -> pusherClient.pushUser(pusherId, appId, userId, payload));
-        } else {
-            sessionRegistry.pushToUser(appId, userId, payload);
+        try {
+            if (role == WmppRole.scheduler) {
+                String pusherId = registryClient.lookupPusher(appId, userId);
+                if (pusherId == null || pusherId.isBlank()) {
+                    pushProgressService.recordFailure(appId, 1);
+                    return;
+                }
+                withRetry("user", appId, pusherId, () -> pusherClient.pushUser(pusherId, appId, userId, payload));
+            } else {
+                sessionRegistry.pushToUser(appId, userId, payload);
+            }
+            pushProgressService.recordSuccess(appId, 1);
+        } catch (Exception ex) {
+            pushProgressService.recordFailure(appId, 1);
+            throw new RuntimeException(ex);
         }
     }
 
@@ -189,6 +204,10 @@ public class SchedulerService {
                 strategy = new RoundRobinStrategy();
                 return strategy;
         }
+    }
+
+    public String currentStrategyName() {
+        return effectiveStrategyName();
     }
 
     private String effectiveStrategyName() {

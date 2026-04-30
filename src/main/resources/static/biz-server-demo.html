@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>业务系统A（systemA / 电子书网站）- 消息推送设置页面</title>
+  <style>
+    :root{--bg:#f6fbff;--panel:#ffffff;--line:#b8d0e9;--text:#1b2a3a;--muted:#5d748c;--ok:#0fa36a;--warn:#d8932f;--accent:#2f74c0}
+    *{box-sizing:border-box}body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:radial-gradient(circle at 8% 8%,rgba(47,116,192,.2),transparent 26%),radial-gradient(circle at 86% 12%,rgba(53,177,127,.18),transparent 24%),linear-gradient(180deg,#f8fcff 0%,#f2f8ff 56%,#f2f4f8 100%);color:var(--text)}
+    .wrap{max-width:1180px;margin:0 auto;padding:24px 16px}.card{background:linear-gradient(155deg,#ffffff,#f5f9ff 62%,#eef8f2 100%);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(63,113,172,.16)}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin-top:14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}h1,h2,h3,p{margin:0}.sub{margin-top:8px;color:var(--muted);line-height:1.75;font-size:13px}
+    label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #b8d0e9;background:linear-gradient(180deg,#ffffff,#f7fbff);color:var(--text)}textarea{min-height:96px;resize:vertical}
+    .toolbar,.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.toolbar{margin-top:12px}button{padding:10px 14px;border-radius:10px;border:1px solid #2f74c0;background:linear-gradient(180deg,#edf5ff,#ddebff);color:#1b2a3a;cursor:pointer}button.good{background:linear-gradient(180deg,#e5fbee,#d6f4e4);border-color:#0fa36a}.note{margin-top:10px;padding:12px;border-radius:12px;background:linear-gradient(180deg,#f8fbff,#eef8f2);border:1px solid #b8d0e9;color:#1b2a3a;font-size:13px;line-height:1.7}
+    pre{margin:0;padding:12px;border-radius:12px;background:#ffffff;border:1px solid #b8d0e9;overflow:auto;color:#1b2a3a;font-size:12px;line-height:1.6}.log{margin-top:12px;height:320px;overflow:auto;border:1px solid #b8d0e9;border-radius:12px;background:linear-gradient(180deg,#ffffff,#f8fbff);padding:8px;font-family:Consolas,monospace;font-size:12px}.line{padding:6px 4px;border-bottom:1px dashed rgba(47,116,192,.18)}.ok{color:#0fa36a}.sys{color:#2f74c0}.err{color:#b25b68}.tag{display:inline-block;padding:5px 10px;border:1px solid #b8d0e9;border-radius:999px;color:#2f74c0;font-size:12px;background:#f6faff}.tags{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    @media (max-width:920px){.grid,.two,.three{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <span class="tag">业务系统A / 电子书网站</span>
+    <h1 style="margin-top:10px">业务系统A（systemA / 电子书网站）- 消息推送设置页面</h1>
+    <p class="sub">这个页面模拟“业务系统 Server 端如何接入你的消息推送平台”。流程就是：<b>引入 SDK → new 服务对象（SM）→ set 推送配置 → 推送消息</b>。业务系统只做配置和发送，客户端只做登录上线后被动接收。</p>
+    <div class="tags">
+      <span class="tag">引用 server sdk</span>
+      <span class="tag">配置推送方式</span>
+      <span class="tag">选择目标 Client</span>
+      <span class="tag">平台负责把消息推过去</span>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>一、业务系统 Server 接入 SDK（核心三步）</h2>
+        <div class="two" style="margin-top:12px">
+          <div>
+            <h3 style="margin-bottom:8px">Java 示例（引入 -> new 对象 -> set/推送）</h3>
+            <pre>// 1) 引入 SDK
+import com.wmpp.sdk.server.SMSetup;
+
+// 2) new 出服务对象（固定平台地址 + 业务系统身份）
+SMSetup sm = new SMSetup();
+sm.setServerUrl("http://localhost:8080");
+sm.setAppKey("systemA");
+sm.setSecretKey("systemA-secret");
+
+// 3) 设置并发起推送
+sm.broadcast("新书上架通知");</pre>
+          </div>
+          <div>
+            <h3 style="margin-bottom:8px">Python / 其他语言模式相同</h3>
+            <pre># 1) 引入 SDK
+from wmpp_server_sdk import SMSetup
+
+# 2) 创建对象
+sm = SMSetup()
+sm.set_server_url("http://localhost:8080")
+sm.set_app_key("systemA")
+sm.set_secret_key("systemA-secret")
+
+# 3) 设置目标并推送
+sm.set_target_type("USER")
+sm.set_target_user_id("1001")
+sm.set_message("您关注的书已更新")
+sm.push()</pre>
+          </div>
+        </div>
+        <div class="note">关键点：WMPP 是独立推送平台，不是业务系统本身。业务系统 Server 只要接入 SDK、配置 appId/appSecret 与目标用户，即可完成推送；不限制业务系统语言和架构。</div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>二、消息推送设置页面（Server 端）</h2>
+        <div class="three" style="margin-top:12px">
+          <label>业务系统名称<input id="bizName" value="业务系统A（电子书网站）" /></label>
+          <label>平台 Base URL<input id="baseUrl" value="http://localhost:8080" /></label>
+          <label>AppId<input id="appId" value="systemA" readonly /></label>
+        </div>
+        <div class="three" style="margin-top:12px">
+          <label>App SecretKey<input id="secret" value="systemA-secret" /></label>
+          <label>推送对象
+            <select id="targetType" onchange="toggleMode()">
+              <option value="broadcast">全部</option>
+              <option value="user">固定用户</option>
+              <option value="users">一组用户</option>
+            </select>
+          </label>
+        </div>
+        <div class="three" style="margin-top:12px">
+          <label id="userWrap" style="display:none">用户 ID<input id="targetUser" placeholder="例如：1001" /></label>
+          <label id="usersWrap" style="display:none">用户 ID 列表<input id="targetUsers" placeholder="例如：1001,2002" /></label>
+          <label>推送标题<input id="title" value="章节更新通知" /></label>
+          <label>业务场景<input id="scene" value="电子书网站 / 订阅消息" /></label>
+        </div>
+        <label style="margin-top:12px">消息内容<textarea id="message">您关注的电子书《系统设计实战》已更新，点击可查看最新章节。</textarea></label>
+        <div class="toolbar">
+          <button class="good" onclick="sendNow()">发送</button>
+          <button onclick="fillPreset('broadcast')">模板：全部</button>
+          <button onclick="fillPreset('user')">模板：固定用户</button>
+          <button onclick="fillPreset('users')">模板：一组用户</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>三、当前 SDK 调用效果</h2>
+        <p class="sub">页面模拟的是“业务系统 Server 的配置过程”，真正项目里这些调用会在业务系统后端代码中完成。</p>
+        <pre id="previewCode">sm.broadcast("新书上架通知｜电子书平台 / 活动消息｜您关注的电子书《系统设计实战》已更新，点击可查看最新章节。");</pre>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <h2>四、联动说明</h2>
+        <div class="note">本页推送参数全部以当前输入框为准。固定用户仅支持 1 个 userId；若需要多个用户，请切换到“一组用户”。</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const secret='systemA-secret'
+function $(id){return document.getElementById(id)}
+function add(text,cls='sys'){const d=document.createElement('div');d.className='line '+cls;d.textContent='['+new Date().toLocaleTimeString()+'] '+text;$('log').prepend(d)}
+function toggleMode(){const target=$('targetType').value;$('userWrap').style.display=target==='user'?'flex':'none';$('usersWrap').style.display=target==='users'?'flex':'none';updatePreview()}
+function buildMsg(){return [$('title').value.trim(),$('scene').value.trim(),$('message').value.trim()].filter(Boolean).join('｜')}
+function updatePreview(){const target=$('targetType').value,msg=buildMsg();let code='';if(target==='broadcast') code=`sm.broadcast("${msg}");`;if(target==='user') code=`sm.pushUser("${$('targetUser').value.trim()}", "${msg}");`;if(target==='users') code=`sm.pushUsers([${$('targetUsers').value.split(',').map(s=>'"'+s.trim()+'"').filter(s=>s!=='""').join(', ')}], "${msg}");`;$('previewCode').textContent=code}
+function parseCurrentTargets(){const target=$('targetType').value;if(target==='broadcast') return {targetType:'broadcast', users:[]};if(target==='user'){const raw=$('targetUser').value.trim();if(!raw) throw new Error('固定用户模式下，请填写 1 个 userId');if(raw.includes(',')) throw new Error('固定用户模式仅支持单个 userId；多个用户请切换到“一组用户”');return {targetType:'user', users:[raw]};}const users=$('targetUsers').value.split(',').map(s=>s.trim()).filter(Boolean);if(!users.length) throw new Error('一组用户模式下，请填写至少 1 个 userId');return {targetType:'users', users};}
+function buildSnapshot(){const baseUrl=$('baseUrl').value.trim();const appId=$('appId').value.trim();const appSecret=$('secret').value.trim()||secret;const bizName=$('bizName').value.trim()||'业务系统A';const msg=buildMsg();const target=parseCurrentTargets();return {baseUrl,appId,appSecret,bizName,msg,targetType:target.targetType,users:target.users};}
+async function sendWithSnapshot(snap){let url='';const opt={method:'POST',headers:{'X-App-Id':snap.appId,'X-App-Secret-Key':snap.appSecret}};if(snap.targetType==='broadcast'){url=snap.baseUrl+'/push/broadcast?message='+encodeURIComponent(snap.msg);}else if(snap.targetType==='user'){url=snap.baseUrl+'/push/user?userId='+encodeURIComponent(snap.users[0])+'&message='+encodeURIComponent(snap.msg);}else{url=snap.baseUrl+'/push/users';opt.headers['Content-Type']='application/json';opt.body=JSON.stringify({userIds:snap.users,message:snap.msg});}
+add(`[SEND] app=${snap.appId}, type=${snap.targetType}, users=${snap.users.join('|')||'ALL'}, msg=${snap.msg.slice(0,40)}`,'sys');
+const resp=await fetch(url,opt);const text=await resp.text();if(!resp.ok) throw new Error(text||('HTTP '+resp.status));return text;}
+async function sendNow(){try{const snap=buildSnapshot();const text=await sendWithSnapshot(snap);add(snap.bizName+' 已发送消息：'+text,'ok')}catch(e){add('发送失败：'+e.message,'err')}}
+
+function fillPreset(kind){$('targetType').value=kind;if(kind==='broadcast'){$('title').value='章节上新广播';$('scene').value='电子书网站 / 全体用户';$('message').value='电子书网站全体用户请注意，今晚 8 点开启新书专题活动。'}if(kind==='user'){$('title').value='订阅作者更新提醒';$('scene').value='电子书网站 / 指定用户';$('targetUser').value='1001';$('message').value='用户 1001，您订阅的作者已更新新章节。'}if(kind==='users'){$('title').value='会员定向通知';$('scene').value='电子书网站 / 指定用户组';$('targetUsers').value='1001,2002';$('message').value='会员活动仅推送给选中的用户列表。'}toggleMode();add('已填充模板：'+kind)}
+['title','scene','message','targetUser','targetUsers'].forEach(id=>$(id).addEventListener('input',updatePreview));toggleMode();$('secret').value=secret;updatePreview();add('业务系统A 设置页已就绪：请配置推送后观察 Client 端是否自动收到消息')
+</script>
+</body>
+</html>
