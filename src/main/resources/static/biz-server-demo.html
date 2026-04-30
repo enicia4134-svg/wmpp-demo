@@ -41,7 +41,8 @@ import com.wmpp.sdk.server.SMSetup;
 
 // 2) new 出服务对象（固定平台地址 + 业务系统身份）
 SMSetup sm = new SMSetup();
-sm.setServerUrl("http://39.107.127.13:8080");
+String serverUrl = window.location.origin;
+sm.setServerUrl(serverUrl);
 sm.setAppKey("systemA");
 sm.setSecretKey("systemA-secret");
 
@@ -73,7 +74,7 @@ sm.push()</pre>
         <h2>二、消息推送设置页面（Server 端）</h2>
         <div class="three" style="margin-top:12px">
           <label>业务系统名称<input id="bizName" value="业务系统A（电子书网站）" /></label>
-          <label>平台 Base URL<input id="baseUrl" value="http://localhost:8080" /></label>
+          <label>平台 Base URL<input id="baseUrl" value="" placeholder="自动读取当前网址" /></label>
           <label>AppId<input id="appId" value="systemA" readonly /></label>
         </div>
         <div class="three" style="margin-top:12px">
@@ -125,7 +126,8 @@ function toggleMode(){const target=$('targetType').value;$('userWrap').style.dis
 function buildMsg(){return [$('title').value.trim(),$('scene').value.trim(),$('message').value.trim()].filter(Boolean).join('｜')}
 function updatePreview(){const target=$('targetType').value,msg=buildMsg();let code='';if(target==='broadcast') code=`sm.broadcast("${msg}");`;if(target==='user') code=`sm.pushUser("${$('targetUser').value.trim()}", "${msg}");`;if(target==='users') code=`sm.pushUsers([${$('targetUsers').value.split(',').map(s=>'"'+s.trim()+'"').filter(s=>s!=='""').join(', ')}], "${msg}");`;$('previewCode').textContent=code}
 function parseCurrentTargets(){const target=$('targetType').value;if(target==='broadcast') return {targetType:'broadcast', users:[]};if(target==='user'){const raw=$('targetUser').value.trim();if(!raw) throw new Error('固定用户模式下，请填写 1 个 userId');if(raw.includes(',')) throw new Error('固定用户模式仅支持单个 userId；多个用户请切换到“一组用户”');return {targetType:'user', users:[raw]};}const users=$('targetUsers').value.split(',').map(s=>s.trim()).filter(Boolean);if(!users.length) throw new Error('一组用户模式下，请填写至少 1 个 userId');return {targetType:'users', users};}
-function buildSnapshot(){const baseUrl=$('baseUrl').value.trim();const appId=$('appId').value.trim();const appSecret=$('secret').value.trim()||secret;const bizName=$('bizName').value.trim()||'业务系统A';const msg=buildMsg();const target=parseCurrentTargets();return {baseUrl,appId,appSecret,bizName,msg,targetType:target.targetType,users:target.users};}
+function currentBaseUrl(){try{return new URL(location.href).origin}catch(e){return $('baseUrl').value.trim()||'http://39.107.127.13:8080'}}
+function buildSnapshot(){const baseUrl=currentBaseUrl();const appId=$('appId').value.trim();const appSecret=$('secret').value.trim()||secret;const bizName=$('bizName').value.trim()||'业务系统A';const msg=buildMsg();const target=parseCurrentTargets();return {baseUrl,appId,appSecret,bizName,msg,targetType:target.targetType,users:target.users};}
 async function sendWithSnapshot(snap){let url='';const opt={method:'POST',headers:{'X-App-Id':snap.appId,'X-App-Secret-Key':snap.appSecret}};if(snap.targetType==='broadcast'){url=snap.baseUrl+'/push/broadcast?message='+encodeURIComponent(snap.msg);}else if(snap.targetType==='user'){url=snap.baseUrl+'/push/user?userId='+encodeURIComponent(snap.users[0])+'&message='+encodeURIComponent(snap.msg);}else{url=snap.baseUrl+'/push/users';opt.headers['Content-Type']='application/json';opt.body=JSON.stringify({userIds:snap.users,message:snap.msg});}
 add(`[SEND] app=${snap.appId}, type=${snap.targetType}, users=${snap.users.join('|')||'ALL'}, msg=${snap.msg.slice(0,40)}`,'sys');
 const resp=await fetch(url,opt);const text=await resp.text();if(!resp.ok) throw new Error(text||('HTTP '+resp.status));return text;}

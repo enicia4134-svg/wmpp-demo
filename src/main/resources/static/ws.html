@@ -25,7 +25,8 @@
         let appId = document.getElementById("appId").value
         let uid = document.getElementById("uid").value
 
-        ws = new WebSocket("ws://localhost:8080/connect?appId=" + appId + "&userId=" + uid)
+        const base = window.location.origin.replace(/^http/, 'ws');
+        ws = new WebSocket(base + "/connect?appId=" + appId + "&userId=" + uid)
 
         ws.onopen = () => log("✅ connected")
 

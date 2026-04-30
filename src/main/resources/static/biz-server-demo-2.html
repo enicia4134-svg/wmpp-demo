@@ -39,7 +39,8 @@
             <pre>import { SMSetup } from "wmpp-server-sdk";
 
 const sm = new SMSetup();
-sm.setServerUrl("http://39.107.127.13:8080");
+String serverUrl = window.location.origin;
+sm.setServerUrl(serverUrl);
 sm.setAppKey("systemB");
 sm.setSecretKey("systemB-secret");
 sm.setMessage("内容社区热点通知");
@@ -67,7 +68,7 @@ sm.push()</pre>
         <h2>二、消息推送设置页面（Server 端）</h2>
         <div class="three" style="margin-top:12px">
           <label>业务系统名称<input id="bizName" value="业务系统B（电商网站）" /></label>
-          <label>平台 Base URL<input id="baseUrl" value="http://localhost:8080" /></label>
+          <label>平台 Base URL<input id="baseUrl" value="" placeholder="自动读取当前网址" /></label>
           <label>AppId<input id="appId" value="systemB" readonly /></label>
         </div>
         <div class="three" style="margin-top:12px">
@@ -125,7 +126,8 @@ function add(text,cls='sys'){const d=document.createElement('div');d.className='
 function toggleMode(){const target=$('targetType').value,schedule=$('scheduleType').value;$('repeatWrap').style.display=schedule==='repeat'?'flex':'none';$('userWrap').style.display=target==='user'?'flex':'none';$('usersWrap').style.display=target==='users'?'flex':'none';updatePreview()}
 function buildMsg(){return [$('title').value.trim(),$('scene').value.trim(),$('message').value.trim()].filter(Boolean).join('｜')}
 function parseTargets(){const targetType=$('targetType').value;if(targetType==='broadcast') return {targetType,users:[]};if(targetType==='user'){const raw=$('targetUser').value.trim();if(!raw) throw new Error('固定用户模式下，请填写 1 个 userId');if(raw.includes(',')) throw new Error('固定用户模式仅支持单个 userId；多个用户请切换到“一组用户”');return {targetType,users:[raw]};}const users=$('targetUsers').value.split(',').map(s=>s.trim()).filter(Boolean);if(!users.length) throw new Error('一组用户模式下，请填写至少 1 个 userId');return {targetType,users};}
-function buildSnapshot(){const t=parseTargets();return {bizName:$('bizName').value.trim()||'业务系统B',baseUrl:$('baseUrl').value.trim(),appId:$('appId').value.trim(),appSecret:$('secret').value.trim(),title:$('title').value.trim(),msg:buildMsg(),targetType:t.targetType,users:t.users};}
+function currentBaseUrl(){try{return new URL(location.href).origin}catch(e){return $('baseUrl').value.trim()||'http://39.107.127.13:8080'}}
+function buildSnapshot(){const t=parseTargets();return {bizName:$('bizName').value.trim()||'业务系统B',baseUrl:currentBaseUrl(),appId:$('appId').value.trim(),appSecret:$('secret').value.trim(),title:$('title').value.trim(),msg:buildMsg(),targetType:t.targetType,users:t.users};}
 function updatePreview(){try{const s=buildSnapshot();let code='';if(s.targetType==='broadcast') code=`sm.broadcast("${s.msg}");`;if(s.targetType==='user') code=`sm.pushUser("${s.users[0]||''}", "${s.msg}");`;if(s.targetType==='users') code=`sm.pushUsers([${s.users.map(u=>'"'+u+'"').join(', ')}], "${s.msg}");`;if($('scheduleType').value==='repeat') code='// 每 '+$('intervalSec').value+' 秒执行一次\n'+code;$('previewCode').textContent=code;}catch(e){$('previewCode').textContent='// 参数未就绪: '+e.message;}}
 async function sendWithSnapshot(s){let url='';const opt={method:'POST',headers:{'X-App-Id':s.appId,'X-App-Secret-Key':s.appSecret}};if(s.targetType==='broadcast'){url=s.baseUrl+'/push/broadcast?message='+encodeURIComponent(s.msg);}else if(s.targetType==='user'){url=s.baseUrl+'/push/user?userId='+encodeURIComponent(s.users[0])+'&message='+encodeURIComponent(s.msg);}else{url=s.baseUrl+'/push/users';opt.headers['Content-Type']='application/json';opt.body=JSON.stringify({userIds:s.users,message:s.msg});}
 add(`[SEND] app=${s.appId}, type=${s.targetType}, users=${s.users.join('|')||'ALL'}, title=${s.title}, msg=${s.msg.slice(0,48)}`,'sys');

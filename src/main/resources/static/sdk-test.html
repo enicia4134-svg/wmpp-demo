@@ -176,6 +176,7 @@
                     <select id="appId" onchange="syncSecretByApp()">
                         <option value="systemA" selected>systemA</option>
                         <option value="systemB">systemB</option>
+                        <option value="systemC">systemC</option>
                         <option value="custom">custom (manual)</option>
                     </select>
                 </label>
@@ -239,7 +240,8 @@
 
     const APP_SECRETS = {
         systemA: "systemA-secret",
-        systemB: "systemB-secret"
+        systemB: "systemB-secret",
+        systemC: "0acf17aafe2866284a4bd5f5b52af9d3624a9286523a1963"
     }
 
     function getAppId() { return document.getElementById("appId").value.trim() }
