@@ -2,14 +2,17 @@ package com.zqw.wmpp;
 
 import com.zqw.wmpp.auth.AppAuthInterceptor;
 import com.zqw.wmpp.reliability.PushAuditService;
-import com.zqw.wmpp.reliability.PushTaskQueueService;
 import com.zqw.wmpp.role.WmppRole;
 import com.zqw.wmpp.scheduler.SchedulerClient;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
@@ -32,12 +35,14 @@ public class PushController {
     @Autowired
     private PushTaskQueueService pushTaskQueueService;
 
-
     @Autowired
     private PushAuditService pushAuditService;
 
     @Autowired
-    private com.zqw.wmpp.session.SessionRegistry sessionRegistry;
+    private com.zqw.wmpp.registry.RegistryClient registryClient;
+
+    @Autowired
+    private TopicService topicService;
 
     @GetMapping("/broadcast")
     public String broadcast(@RequestParam(required = false) String message, HttpServletRequest request) throws Exception {
@@ -47,9 +52,10 @@ public class PushController {
         System.out.println("🚀 Gateway 收到推送请求: " + payload);
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
-        long target = sessionRegistry.getOnlineCount(appId);
+        long target = registryClient.pusherCounts(appId).values().stream().mapToLong(Integer::longValue).sum();
         String taskId = pushTaskQueueService.enqueueBroadcast(appId, payload);
         pushAuditService.record(taskId, appId, "BROADCAST", payload, List.of("ALL"), target, target, 0);
+
         try {
             schedulerService.dispatchBroadcast(appId, payload);
             System.out.println("[GATEWAY_DIRECT_BROADCAST_DONE] appId=" + appId + ", target=" + target);
@@ -57,6 +63,7 @@ public class PushController {
             System.out.println("[GATEWAY_DIRECT_BROADCAST_FAIL] appId=" + appId + ", err=" + e.getMessage());
             throw e;
         }
+
         return "queued:" + taskId;
     }
 
@@ -71,9 +78,10 @@ public class PushController {
         String payload = message == null ? "" : message;
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
-        long target = sessionRegistry.getWebSocket(appId, userId).isPresent() ? 1L : 0L;
+        long target = registryClient.lookupPusher(appId, userId).isBlank() ? 0L : 1L;
         String taskId = pushTaskQueueService.enqueueUser(appId, userId, payload);
         pushAuditService.record(taskId, appId, "USER", payload, List.of(userId), target, target, 0);
+
         try {
             schedulerService.dispatchUser(appId, userId, payload);
             System.out.println("[GATEWAY_DIRECT_USER_DONE] appId=" + appId + ", userId=" + userId + ", target=" + target);
@@ -81,6 +89,7 @@ public class PushController {
             System.out.println("[GATEWAY_DIRECT_USER_FAIL] appId=" + appId + ", userId=" + userId + ", err=" + e.getMessage());
             throw e;
         }
+
         return "queued-user:" + taskId;
     }
 
@@ -96,10 +105,12 @@ public class PushController {
         requireGateway();
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
         if (body == null || body.userIds() == null || body.userIds().isEmpty()) return "userIds required";
+
         String payload = body.message() == null ? "" : body.message();
-        long target = body.userIds().stream().filter(id -> sessionRegistry.getWebSocket(appId, id).isPresent()).count();
+        long target = body.userIds().stream().filter(id -> !registryClient.lookupPusher(appId, id).isBlank()).count();
         String taskId = pushTaskQueueService.enqueueUsers(appId, body.userIds(), payload);
         pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
+
         try {
             schedulerService.dispatchUsers(appId, body.userIds(), payload);
             System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + body.userIds().size());
@@ -107,6 +118,7 @@ public class PushController {
             System.out.println("[GATEWAY_DIRECT_USERS_FAIL] appId=" + appId + ", err=" + e.getMessage());
             throw e;
         }
+
         return "queued-users:" + taskId;
     }
 
@@ -119,9 +131,11 @@ public class PushController {
                 .map(String::trim)
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toList());
-        long target = ids.stream().filter(id -> sessionRegistry.getWebSocket(appId, id).isPresent()).count();
+
+        long target = ids.stream().filter(id -> !registryClient.lookupPusher(appId, id).isBlank()).count();
         String taskId = pushTaskQueueService.enqueueUsers(appId, ids, payload);
         pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
+
         try {
             schedulerService.dispatchUsers(appId, ids, payload);
             System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + ids.size());
@@ -129,11 +143,9 @@ public class PushController {
             System.out.println("[GATEWAY_DIRECT_USERS_FAIL] appId=" + appId + ", err=" + e.getMessage());
             throw e;
         }
+
         return "queued-users:" + taskId;
     }
-
-    @Autowired
-    private TopicService topicService;
 
     @GetMapping("/topic")
     public String pushTopic(String topic, @RequestParam(required = false) String message, HttpServletRequest request) throws Exception {
