@@ -32,6 +32,7 @@ public class PushController {
     @Autowired
     private PushTaskQueueService pushTaskQueueService;
 
+
     @Autowired
     private PushAuditService pushAuditService;
 
@@ -49,6 +50,13 @@ public class PushController {
         long target = sessionRegistry.getOnlineCount(appId);
         String taskId = pushTaskQueueService.enqueueBroadcast(appId, payload);
         pushAuditService.record(taskId, appId, "BROADCAST", payload, List.of("ALL"), target, target, 0);
+        try {
+            schedulerService.dispatchBroadcast(appId, payload);
+            System.out.println("[GATEWAY_DIRECT_BROADCAST_DONE] appId=" + appId + ", target=" + target);
+        } catch (Exception e) {
+            System.out.println("[GATEWAY_DIRECT_BROADCAST_FAIL] appId=" + appId + ", err=" + e.getMessage());
+            throw e;
+        }
         return "queued:" + taskId;
     }
 
@@ -66,6 +74,13 @@ public class PushController {
         long target = sessionRegistry.getWebSocket(appId, userId).isPresent() ? 1L : 0L;
         String taskId = pushTaskQueueService.enqueueUser(appId, userId, payload);
         pushAuditService.record(taskId, appId, "USER", payload, List.of(userId), target, target, 0);
+        try {
+            schedulerService.dispatchUser(appId, userId, payload);
+            System.out.println("[GATEWAY_DIRECT_USER_DONE] appId=" + appId + ", userId=" + userId + ", target=" + target);
+        } catch (Exception e) {
+            System.out.println("[GATEWAY_DIRECT_USER_FAIL] appId=" + appId + ", userId=" + userId + ", err=" + e.getMessage());
+            throw e;
+        }
         return "queued-user:" + taskId;
     }
 
@@ -85,6 +100,13 @@ public class PushController {
         long target = body.userIds().stream().filter(id -> sessionRegistry.getWebSocket(appId, id).isPresent()).count();
         String taskId = pushTaskQueueService.enqueueUsers(appId, body.userIds(), payload);
         pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
+        try {
+            schedulerService.dispatchUsers(appId, body.userIds(), payload);
+            System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + body.userIds().size());
+        } catch (Exception e) {
+            System.out.println("[GATEWAY_DIRECT_USERS_FAIL] appId=" + appId + ", err=" + e.getMessage());
+            throw e;
+        }
         return "queued-users:" + taskId;
     }
 
@@ -100,6 +122,13 @@ public class PushController {
         long target = ids.stream().filter(id -> sessionRegistry.getWebSocket(appId, id).isPresent()).count();
         String taskId = pushTaskQueueService.enqueueUsers(appId, ids, payload);
         pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
+        try {
+            schedulerService.dispatchUsers(appId, ids, payload);
+            System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + ids.size());
+        } catch (Exception e) {
+            System.out.println("[GATEWAY_DIRECT_USERS_FAIL] appId=" + appId + ", err=" + e.getMessage());
+            throw e;
+        }
         return "queued-users:" + taskId;
     }
 

@@ -3,6 +3,7 @@ package com.zqw.wmpp;
 import com.zqw.wmpp.scheduler.LeastConnectionStrategy;
 import com.zqw.wmpp.scheduler.PusherClient;
 import com.zqw.wmpp.scheduler.RoundRobinStrategy;
+import com.zqw.wmpp.scheduler.SchedulerClient;
 import com.zqw.wmpp.scheduler.SchedulerStrategy;
 import com.zqw.wmpp.registry.RegistryClient;
 import com.zqw.wmpp.reliability.PushProgressService;
@@ -39,6 +40,9 @@ public class SchedulerService {
 
     @Autowired
     private PusherClient pusherClient;
+
+    @Autowired
+    private SchedulerClient schedulerClient;
 
     @Autowired
     private ObjectMapper objectMapper;
