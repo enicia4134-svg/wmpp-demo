@@ -32,6 +32,7 @@ public class PusherClient {
     public record PushBody(String message) {}
 
     public void broadcast(String pusherId, String appId, String msg) {
+        System.out.println("[PUSHER_CLIENT_BROADCAST] pusherId=" + pusherId + ", appId=" + appId + ", msg=" + summarize(msg));
         RestClient http = require(pusherId);
         http.post()
                 .uri(uriBuilder -> uriBuilder.path("/internal/push/broadcast")
@@ -41,9 +42,11 @@ public class PusherClient {
                 .body(new PushBody(msg))
                 .retrieve()
                 .toBodilessEntity();
+        System.out.println("[PUSHER_CLIENT_BROADCAST_DONE] pusherId=" + pusherId + ", appId=" + appId);
     }
 
     public void pushUser(String pusherId, String appId, String userId, String msg) {
+        System.out.println("[PUSHER_CLIENT_USER] pusherId=" + pusherId + ", appId=" + appId + ", userId=" + userId + ", msg=" + summarize(msg));
         RestClient http = require(pusherId);
         http.post()
                 .uri(uriBuilder -> uriBuilder.path("/internal/push/user")
@@ -54,6 +57,13 @@ public class PusherClient {
                 .body(new PushBody(msg))
                 .retrieve()
                 .toBodilessEntity();
+        System.out.println("[PUSHER_CLIENT_USER_DONE] pusherId=" + pusherId + ", appId=" + appId + ", userId=" + userId);
+    }
+
+    private String summarize(String message) {
+        if (message == null) return "";
+        String t = message.replace('\n', ' ').trim();
+        return t.length() <= 80 ? t : t.substring(0, 80) + "...";
     }
 
     private RestClient require(String pusherId) {

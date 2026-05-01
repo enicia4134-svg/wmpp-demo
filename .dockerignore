@@ -1,0 +1,10 @@
+target
+.git
+.idea
+*.log
+*.tmp
+*.swp
+terminals
+node_modules
+**/node_modules
+.DS_Store

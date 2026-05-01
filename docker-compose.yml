@@ -1,9 +1,16 @@
+x-app: &app
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: wmpp-demo:latest
+  restart: unless-stopped
+
 services:
   registry:
-    build: .
+    <<: *app
     environment:
-      - WMPP_ADMIN_TOKEN=change-me
-      - WMPP_ROLE=registry
+      WMPP_ADMIN_TOKEN: change-me
+      WMPP_ROLE: registry
     ports:
       - "8090:8090"
     command: ["java","-jar","/app/app.jar","--server.port=8090","--wmpp.role=registry"]
@@ -15,9 +22,9 @@ services:
       start_period: 30s
 
   scheduler:
-    build: .
+    <<: *app
     environment:
-      - WMPP_ROLE=scheduler
+      WMPP_ROLE: scheduler
     ports:
       - "8081:8081"
     command:
@@ -40,7 +47,7 @@ services:
       start_period: 30s
 
   gateway:
-    build: .
+    <<: *app
     ports:
       - "8080:8080"
     command:
@@ -65,7 +72,7 @@ services:
       start_period: 30s
 
   pusher1:
-    build: .
+    <<: *app
     ports:
       - "8084:8084"
     command:
@@ -90,7 +97,7 @@ services:
       start_period: 30s
 
   pusher2:
-    build: .
+    <<: *app
     ports:
       - "8085:8085"
     command:

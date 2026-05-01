@@ -150,6 +150,8 @@ public class SessionRegistry {
             return;
         }
 
+        System.out.println("[SESSION_HIT] " + appId + "/" + userId + " ws=" + (info.webSocketSession != null) + " sse=" + (info.sseEmitter != null));
+
         String msgId = extractMsgId(message);
 
         // Prefer SSE for data push channel if present
@@ -162,6 +164,7 @@ public class SessionRegistry {
                 System.out.println("[DIRECT_SEND_SSE] " + appId + "/" + userId + " msg=" + summarize(message));
                 return;
             } catch (IOException ex) {
+                System.out.println("[DIRECT_SEND_SSE_FAIL] " + appId + "/" + userId + " err=" + ex.getMessage());
                 removeSse(appId, userId, info.sseEmitter);
             }
         }
@@ -175,8 +178,8 @@ public class SessionRegistry {
                 }
                 System.out.println("[DIRECT_SEND_WS] " + appId + "/" + userId + " msg=" + summarize(message));
                 return;
-            } catch (IOException ignored) {
-                // ignore
+            } catch (IOException ex) {
+                System.out.println("[DIRECT_SEND_WS_FAIL] " + appId + "/" + userId + " err=" + ex.getMessage());
             }
         }
 
