@@ -99,10 +99,17 @@ public class SchedulerService {
                 sessionRegistry.pushToUser(appId, userId, payload);
             }
             pushProgressService.recordSuccess(appId, 1);
+            System.out.println("[DISPATCH_USER] appId=" + appId + ", userId=" + userId + ", payload=" + summarize(payload));
         } catch (Exception ex) {
             pushProgressService.recordFailure(appId, 1);
             throw new RuntimeException(ex);
         }
+    }
+
+    private String summarize(String message) {
+        if (message == null) return "";
+        String t = message.replace('\n', ' ').trim();
+        return t.length() <= 80 ? t : t.substring(0, 80) + "...";
     }
 
     public void dispatchUsers(String appId, List<String> userIds, String msg) {

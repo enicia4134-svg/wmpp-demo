@@ -37,6 +37,7 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
 
         String appId = (String) session.getAttributes().get(ATTR_APP_ID);
         String userId = (String) session.getAttributes().get(ATTR_USER_ID);
+        System.out.println("[WS_OPEN] appId=" + appId + ", userId=" + userId + ", uri=" + session.getUri());
 
         if (appId != null && userId != null) {
             sessionRegistry.registerWebSocket(appId, userId, session);
@@ -52,6 +53,7 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
 
         String appId = (String) session.getAttributes().get(ATTR_APP_ID);
         String userId = (String) session.getAttributes().get(ATTR_USER_ID);
+        System.out.println("[WS_CLOSE] appId=" + appId + ", userId=" + userId + ", status=" + status);
 
         if (appId != null && userId != null) {
             sessionRegistry.unregisterWebSocket(appId, userId, session);

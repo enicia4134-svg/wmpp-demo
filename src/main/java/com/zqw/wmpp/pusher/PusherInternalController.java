@@ -23,6 +23,7 @@ public class PusherInternalController {
     public void broadcast(@RequestParam String appId, @RequestBody(required = false) PushBody body) {
         requirePusher();
         String message = body == null || body.message() == null ? "" : body.message();
+        System.out.println("[PUSHER_INTERNAL_BROADCAST] appId=" + appId + ", msg=" + summarize(message));
         sessionRegistry.broadcast(appId, message);
     }
 
@@ -30,7 +31,14 @@ public class PusherInternalController {
     public void user(@RequestParam String appId, @RequestParam String userId, @RequestBody(required = false) PushBody body) {
         requirePusher();
         String message = body == null || body.message() == null ? "" : body.message();
+        System.out.println("[PUSHER_INTERNAL_USER] appId=" + appId + ", userId=" + userId + ", msg=" + summarize(message));
         sessionRegistry.pushToUser(appId, userId, message);
+    }
+
+    private String summarize(String message) {
+        if (message == null) return "";
+        String t = message.replace('\n', ' ').trim();
+        return t.length() <= 80 ? t : t.substring(0, 80) + "...";
     }
 
     private void requirePusher() {

@@ -41,17 +41,21 @@ public class ConnectController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid userId");
         }
 
+        System.out.println("[API_CONNECT] appId=" + appId + ", userId=" + userId + ", role=" + role);
+
         SchedulerController.AssignResponse assigned = (role == WmppRole.gateway)
                 ? schedulerClient.assign(appId, userId)
                 : new SchedulerController.AssignResponse("local", resolveHttpBaseUrl(request), resolveWsBaseUrl(request));
 
         String httpBase = assigned.httpBaseUrl();
         String wsBase = assigned.wsBaseUrl();
-        // DDD: ws://host/connect?appId=xxx&userId=xxx（与 /ws/push 等价，便于论文表述一致）
+        String wsUrl = wsBase + "/ws/push?appId=" + appId + "&userId=" + userId;
+        String sseUrl = httpBase + "/stream?appId=" + appId + "&userId=" + userId;
+        System.out.println("[API_CONNECT_RESULT] pusher=" + assigned.pusherId() + ", wsUrl=" + wsUrl + ", sseUrl=" + sseUrl);
         return new ConnectResponse(
                 assigned.pusherId(),
-                wsBase + "/connect?appId=" + appId + "&userId=" + userId,
-                httpBase + "/stream?appId=" + appId + "&userId=" + userId
+                wsUrl,
+                sseUrl
         );
     }
 

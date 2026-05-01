@@ -44,6 +44,7 @@ public class SseController {
         if (userId == null || userId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid userId");
         }
+        System.out.println("[SSE_OPEN] appId=" + appId + ", userId=" + userId);
         SseEmitter emitter = sessionRegistry.registerSse(appId, userId);
         if (role == WmppRole.pusher) {
             registryClient.register(appId, userId, pusherId);
