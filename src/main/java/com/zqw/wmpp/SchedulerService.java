@@ -68,6 +68,12 @@ public class SchedulerService {
     }
 
     public void dispatchBroadcast(String appId, String message) throws Exception {
+        if (role == WmppRole.gateway) {
+            schedulerClient.broadcast(appId, message);
+            System.out.println("[SCHEDULER_CLIENT_BROADCAST] appId=" + appId + ", msg=" + summarize(message));
+            return;
+        }
+
         if (role == WmppRole.scheduler) {
             List<String> pusherIds = availablePusherIds();
             if (pusherIds.isEmpty()) {
@@ -92,6 +98,11 @@ public class SchedulerService {
     public void dispatchUser(String appId, String userId, String msg) {
         String payload = buildMessageEnvelope("notification", "【通知】" + msg);
         try {
+            if (role == WmppRole.gateway) {
+                schedulerClient.user(appId, userId, msg);
+                System.out.println("[SCHEDULER_CLIENT_USER] appId=" + appId + ", userId=" + userId + ", msg=" + summarize(msg));
+                return;
+            }
             if (role == WmppRole.scheduler) {
                 String pusherId = registryClient.lookupPusher(appId, userId);
                 if (pusherId == null || pusherId.isBlank()) {
@@ -118,6 +129,11 @@ public class SchedulerService {
 
     public void dispatchUsers(String appId, List<String> userIds, String msg) {
         if (userIds == null) return;
+        if (role == WmppRole.gateway) {
+            schedulerClient.users(appId, userIds, msg);
+            System.out.println("[SCHEDULER_CLIENT_USERS] appId=" + appId + ", count=" + userIds.size() + ", msg=" + summarize(msg));
+            return;
+        }
         for (String uid : userIds) {
             if (uid == null || uid.isBlank()) continue;
             dispatchUser(appId, uid, msg);
