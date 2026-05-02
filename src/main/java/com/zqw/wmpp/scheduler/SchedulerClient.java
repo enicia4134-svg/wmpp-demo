@@ -49,18 +49,18 @@ public class SchedulerClient {
                 .toBodilessEntity();
     }
 
-    public void users(String appId, List<String> userIds, String msg) {
+    public SchedulerController.UsersResponse users(String appId, List<String> userIds, String msg) {
         SchedulerController.UsersBody body = new SchedulerController.UsersBody();
         body.userIds = userIds;
         body.message = msg;
-        http.post()
+        return http.post()
                 .uri(uriBuilder -> uriBuilder.path("/scheduler/users")
                         .queryParam("appId", appId)
                         .build())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()
-                .toBodilessEntity();
+                .body(SchedulerController.UsersResponse.class);
     }
 
     public void topic(String appId, String topic, String msg) {
@@ -75,4 +75,3 @@ public class SchedulerClient {
                 .toBodilessEntity();
     }
 }
-

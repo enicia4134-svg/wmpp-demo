@@ -26,19 +26,14 @@ public class PushController {
 
     @Autowired
     private SchedulerService schedulerService;
-
     @Autowired
     private SchedulerClient schedulerClient;
-
     @Autowired
     private WmppRole role;
-
     @Autowired
     private PushAuditService pushAuditService;
-
     @Autowired
     private com.zqw.wmpp.registry.RegistryClient registryClient;
-
     @Autowired
     private TopicService topicService;
 
@@ -46,7 +41,6 @@ public class PushController {
     public String broadcast(@RequestParam(required = false) String message, HttpServletRequest request) throws Exception {
         requireGateway();
         String payload = message == null ? "" : message;
-
         System.out.println("🚀 Gateway 收到推送请求: " + payload);
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
@@ -54,14 +48,8 @@ public class PushController {
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "BROADCAST", payload, List.of("ALL"), target, target, 0);
 
-        try {
-            schedulerService.dispatchBroadcast(appId, payload);
-            System.out.println("[GATEWAY_DIRECT_BROADCAST_DONE] appId=" + appId + ", target=" + target);
-        } catch (Exception e) {
-            System.out.println("[GATEWAY_DIRECT_BROADCAST_FAIL] appId=" + appId + ", err=" + e.getMessage());
-            throw e;
-        }
-
+        schedulerService.dispatchBroadcast(appId, payload);
+        System.out.println("[GATEWAY_DIRECT_BROADCAST_DONE] appId=" + appId + ", target=" + target);
         return "queued:" + taskId;
     }
 
@@ -74,20 +62,13 @@ public class PushController {
     public String pushUser(String userId, @RequestParam(required = false) String message, HttpServletRequest request) throws Exception {
         requireGateway();
         String payload = message == null ? "" : message;
-
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
         long target = registryClient.lookupPusher(appId, userId).isBlank() ? 0L : 1L;
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "USER", payload, List.of(userId), target, target, 0);
 
-        try {
-            schedulerService.dispatchUser(appId, userId, payload);
-            System.out.println("[GATEWAY_DIRECT_USER_DONE] appId=" + appId + ", userId=" + userId + ", target=" + target);
-        } catch (Exception e) {
-            System.out.println("[GATEWAY_DIRECT_USER_FAIL] appId=" + appId + ", userId=" + userId + ", err=" + e.getMessage());
-            throw e;
-        }
-
+        schedulerService.dispatchUser(appId, userId, payload);
+        System.out.println("[GATEWAY_DIRECT_USER_DONE] appId=" + appId + ", userId=" + userId + ", target=" + target);
         return "queued-user:" + taskId;
     }
 
@@ -109,15 +90,9 @@ public class PushController {
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
 
-        try {
-            schedulerService.dispatchUsers(appId, body.userIds(), payload);
-            System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + body.userIds().size());
-        } catch (Exception e) {
-            System.out.println("[GATEWAY_DIRECT_USERS_FAIL] appId=" + appId + ", err=" + e.getMessage());
-            throw e;
-        }
-
-        return "queued-users:" + taskId;
+        SchedulerController.UsersResponse resp = schedulerClient.users(appId, body.userIds(), payload);
+        System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + body.userIds().size() + ", success=" + resp.success() + ", failed=" + resp.failed());
+        return "queued-users:" + taskId + "|success=" + resp.success() + "|failed=" + resp.failed();
     }
 
     @GetMapping("/users")
@@ -134,29 +109,21 @@ public class PushController {
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
 
-        try {
-            schedulerService.dispatchUsers(appId, ids, payload);
-            System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + ids.size());
-        } catch (Exception e) {
-            System.out.println("[GATEWAY_DIRECT_USERS_FAIL] appId=" + appId + ", err=" + e.getMessage());
-            throw e;
-        }
-
-        return "queued-users:" + taskId;
+        SchedulerController.UsersResponse resp = schedulerClient.users(appId, ids, payload);
+        System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + ids.size() + ", success=" + resp.success() + ", failed=" + resp.failed());
+        return "queued-users:" + taskId + "|success=" + resp.success() + "|failed=" + resp.failed();
     }
 
     @GetMapping("/topic")
     public String pushTopic(String topic, @RequestParam(required = false) String message, HttpServletRequest request) throws Exception {
         requireGateway();
         String payload = message == null ? "" : message;
-
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
         if (role == WmppRole.gateway) {
             schedulerClient.topic(appId, topic, payload);
         } else {
             schedulerService.dispatchTopicPush(appId, topic, payload, topicService);
         }
-
         return "topic push ok";
     }
 

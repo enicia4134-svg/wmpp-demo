@@ -3,12 +3,14 @@ package com.zqw.wmpp.scheduler;
 import com.zqw.wmpp.TopicService;
 import com.zqw.wmpp.SchedulerService;
 import com.zqw.wmpp.auth.AppRegistryService;
+import com.zqw.wmpp.registry.RegistryClient;
 import com.zqw.wmpp.role.WmppRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -17,24 +19,18 @@ public class SchedulerController {
 
     @Autowired
     private WmppRole role;
-
     @Autowired
     private SchedulerService schedulerService;
-
     @Autowired
     private TopicService topicService;
-
     @Autowired
     private AppRegistryService appRegistryService;
-
     @Autowired
     private PusherClient pusherClient;
-
     @Autowired
     private PusherPublicEndpoints pusherPublicEndpoints;
-
     @Autowired
-    private com.zqw.wmpp.registry.RegistryClient registryClient;
+    private RegistryClient registryClient;
 
     @PostMapping("/broadcast")
     public void broadcast(@RequestParam String appId, @RequestParam String message) throws Exception {
@@ -50,12 +46,32 @@ public class SchedulerController {
         schedulerService.dispatchUser(appId, userId, message);
     }
 
+    public record UsersBody(List<String> userIds, String message) {}
+    public record UsersResponse(String status, int total, int success, int failed, List<String> failedUsers) {}
+
     @PostMapping("/users")
-    public void users(@RequestParam String appId, @RequestBody UsersBody body) throws Exception {
+    public UsersResponse users(@RequestParam String appId, @RequestBody UsersBody body) throws Exception {
         requireScheduler();
         requireApp(appId);
-        if (body == null || body.userIds == null) return;
-        schedulerService.dispatchUsers(appId, body.userIds, body.message == null ? "" : body.message);
+        if (body == null || body.userIds == null || body.userIds.isEmpty()) {
+            return new UsersResponse("empty", 0, 0, 0, List.of());
+        }
+
+        int success = 0;
+        int failed = 0;
+        List<String> failedUsers = new ArrayList<>();
+        for (String uid : body.userIds) {
+            if (uid == null || uid.isBlank()) continue;
+            try {
+                schedulerService.dispatchUser(appId, uid, body.message == null ? "" : body.message);
+                success++;
+            } catch (Exception ex) {
+                failed++;
+                failedUsers.add(uid);
+                System.out.println("[SCHEDULER_USERS_ITEM_FAIL] appId=" + appId + ", userId=" + uid + ", err=" + ex.getMessage());
+            }
+        }
+        return new UsersResponse("ok", body.userIds.size(), success, failed, failedUsers);
     }
 
     @PostMapping("/topic")
@@ -71,20 +87,12 @@ public class SchedulerController {
     public AssignResponse assign(@RequestParam String appId, @RequestParam String userId) {
         requireScheduler();
         requireApp(appId);
-
-        // If user already has route, stick to it
         String routed = registryClient.lookupPusher(appId, userId);
         String pusherId = (routed != null && !routed.isBlank()) ? routed : schedulerService.selectPusherIdForNewConnection(appId);
-
         String internalHttp = pusherClient.getBaseUrl(pusherId);
         String publicHttp = pusherPublicEndpoints.publicBaseUrl(pusherId, internalHttp);
         String ws = toWsBase(publicHttp);
         return new AssignResponse(pusherId, publicHttp, ws);
-    }
-
-    public static class UsersBody {
-        public List<String> userIds;
-        public String message;
     }
 
     private void requireScheduler() {
@@ -106,4 +114,3 @@ public class SchedulerController {
         return httpBase;
     }
 }
-
