@@ -1,14 +1,14 @@
 package com.zqw.wmpp;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zqw.wmpp.registry.RegistryClient;
+import com.zqw.wmpp.reliability.PushProgressService;
+import com.zqw.wmpp.role.WmppRole;
 import com.zqw.wmpp.scheduler.LeastConnectionStrategy;
 import com.zqw.wmpp.scheduler.PusherClient;
 import com.zqw.wmpp.scheduler.RoundRobinStrategy;
 import com.zqw.wmpp.scheduler.SchedulerClient;
 import com.zqw.wmpp.scheduler.SchedulerStrategy;
-import com.zqw.wmpp.registry.RegistryClient;
-import com.zqw.wmpp.reliability.PushProgressService;
-import com.zqw.wmpp.role.WmppRole;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zqw.wmpp.session.SessionRegistry;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,37 +31,28 @@ public class SchedulerService {
 
     @Autowired
     private SessionRegistry sessionRegistry;
-
     @Autowired
     private WmppRole role;
-
     @Autowired
     private RegistryClient registryClient;
-
     @Autowired
     private PusherClient pusherClient;
-
     @Autowired
     private SchedulerClient schedulerClient;
-
     @Autowired
     private ObjectMapper objectMapper;
-
     @Autowired
     private PushProgressService pushProgressService;
 
     @Value("${wmpp.scheduler.strategy:rr}")
     private String strategyName;
-
     @Value("${wmpp.push.retry.max-attempts:3}")
     private int pushRetryMaxAttempts;
-
     @Value("${wmpp.push.retry.base-delay-ms:200}")
     private long pushRetryBaseDelayMs;
 
     @PostConstruct
     public void init() {
-        // demo seed
         initAppNodes("systemA");
         initAppNodes("systemB");
         System.out.println("初始化Pusher节点池: systemA/systemB");
@@ -69,17 +60,19 @@ public class SchedulerService {
 
     public void dispatchBroadcast(String appId, String message) throws Exception {
         if (role == WmppRole.gateway) {
-            schedulerClient.broadcast(appId, message);
-            System.out.println("[SCHEDULER_CLIENT_BROADCAST] appId=" + appId + ", msg=" + summarize(message));
-            return;
+            try {
+                schedulerClient.broadcast(appId, message);
+                System.out.println("[SCHEDULER_CLIENT_BROADCAST] appId=" + appId + ", msg=" + summarize(message));
+                return;
+            } catch (Exception ex) {
+                System.out.println("[SCHEDULER_CLIENT_BROADCAST_FAIL] appId=" + appId + ", err=" + ex.getMessage());
+                throw ex;
+            }
         }
 
         if (role == WmppRole.scheduler) {
             List<String> pusherIds = availablePusherIds();
-            if (pusherIds.isEmpty()) {
-                throw new IllegalStateException("No available pusher nodes for broadcast");
-            }
-
+            if (pusherIds.isEmpty()) throw new IllegalStateException("No available pusher nodes for broadcast");
             String payload = buildMessageEnvelope("broadcast", message);
             for (String pusherId : pusherIds) {
                 withRetry("broadcast", appId, pusherId, () -> pusherClient.broadcast(pusherId, appId, payload));
@@ -89,7 +82,6 @@ public class SchedulerService {
             return;
         }
 
-        // mono
         String payload = buildMessageEnvelope("broadcast", message);
         sessionRegistry.broadcast(appId, payload);
         pushProgressService.recordSuccess(appId, Math.max(1, sessionRegistry.getOnlineCount(appId)));
@@ -99,13 +91,19 @@ public class SchedulerService {
         String payload = buildMessageEnvelope("notification", "【通知】" + msg);
         try {
             if (role == WmppRole.gateway) {
-                schedulerClient.user(appId, userId, msg);
-                System.out.println("[SCHEDULER_CLIENT_USER] appId=" + appId + ", userId=" + userId + ", msg=" + summarize(msg));
+                try {
+                    schedulerClient.user(appId, userId, msg);
+                    System.out.println("[SCHEDULER_CLIENT_USER] appId=" + appId + ", userId=" + userId + ", msg=" + summarize(msg));
+                } catch (Exception ex) {
+                    System.out.println("[SCHEDULER_CLIENT_USER_FAIL] appId=" + appId + ", userId=" + userId + ", err=" + ex.getMessage());
+                    throw ex;
+                }
                 return;
             }
             if (role == WmppRole.scheduler) {
                 String pusherId = registryClient.lookupPusher(appId, userId);
                 if (pusherId == null || pusherId.isBlank()) {
+                    System.out.println("[DISPATCH_USER_ROUTE_MISS] appId=" + appId + ", userId=" + userId + ", msg=" + summarize(payload));
                     pushProgressService.recordFailure(appId, 1);
                     return;
                 }
@@ -130,28 +128,31 @@ public class SchedulerService {
     public void dispatchUsers(String appId, List<String> userIds, String msg) {
         if (userIds == null) return;
         if (role == WmppRole.gateway) {
-            schedulerClient.users(appId, userIds, msg);
-            System.out.println("[SCHEDULER_CLIENT_USERS] appId=" + appId + ", count=" + userIds.size() + ", msg=" + summarize(msg));
-            return;
+            try {
+                schedulerClient.users(appId, userIds, msg);
+                System.out.println("[SCHEDULER_CLIENT_USERS] appId=" + appId + ", count=" + userIds.size() + ", msg=" + summarize(msg));
+                return;
+            } catch (Exception ex) {
+                System.out.println("[SCHEDULER_CLIENT_USERS_FAIL] appId=" + appId + ", err=" + ex.getMessage());
+                throw ex;
+            }
         }
         for (String uid : userIds) {
             if (uid == null || uid.isBlank()) continue;
-            dispatchUser(appId, uid, msg);
+            try {
+                dispatchUser(appId, uid, msg);
+            } catch (Exception ex) {
+                System.out.println("[DISPATCH_USERS_ITEM_FAIL] appId=" + appId + ", userId=" + uid + ", err=" + ex.getMessage());
+            }
         }
     }
 
-    public void dispatchTopicPush(String appId, String topic, String msg,
-                                  TopicService topicService) throws Exception {
-
+    public void dispatchTopicPush(String appId, String topic, String msg, TopicService topicService) throws Exception {
         System.out.println("Topic调度开始: appId=" + appId + ", topic=" + topic);
-
         Set<String> users = topicService.getSubscribers(appId, topic);
-
-        for(String uid : users){
-
-            dispatchUser(appId, uid, "[Topic:"+topic+"] " + msg);
+        for (String uid : users) {
+            dispatchUser(appId, uid, "[Topic:" + topic + "] " + msg);
         }
-
         System.out.println("Topic调度完成");
     }
 
@@ -163,9 +164,7 @@ public class SchedulerService {
             nodes.add(new PusherNode(appId, "Pusher-2"));
             nodes.add(new PusherNode(appId, "Pusher-3"));
         } else {
-            for (String pid : pusherIds) {
-                nodes.add(new PusherNode(appId, pid));
-            }
+            for (String pid : pusherIds) nodes.add(new PusherNode(appId, pid));
         }
         appNodes.put(appId, nodes);
     }
@@ -177,11 +176,9 @@ public class SchedulerService {
     private PusherNode selectNode(String appId) {
         List<PusherNode> nodes = appNodes.get(appId);
         if (nodes == null || nodes.isEmpty()) {
-            // lazy init for unknown appId (still single-node demo)
             initAppNodes(appId);
             nodes = appNodes.get(appId);
         }
-        // In scheduler role, ensure nodes are consistent with configured pusher nodes.
         if (role == WmppRole.scheduler) {
             List<String> allowed = availablePusherIds();
             if (!allowed.isEmpty()) {
@@ -193,27 +190,18 @@ public class SchedulerService {
                 }
             }
         }
-        // refresh snapshot connectionCount for least-connection strategy
         if (role == WmppRole.scheduler) {
             Map<String, Integer> counts = registryClient.pusherCounts(appId);
-            for (PusherNode n : nodes) {
-                n.setConnectionCountSnapshot(counts.getOrDefault(n.getPusherId(), 0));
-            }
+            for (PusherNode n : nodes) n.setConnectionCountSnapshot(counts.getOrDefault(n.getPusherId(), 0));
         } else {
             int online = sessionRegistry.getOnlineCount(appId);
-            for (PusherNode n : nodes) {
-                n.setConnectionCountSnapshot(online);
-            }
+            for (PusherNode n : nodes) n.setConnectionCountSnapshot(online);
         }
         return getStrategy().select(appId, nodes);
     }
 
     private List<String> availablePusherIds() {
-        try {
-            return pusherClient.getAllBaseUrls().keySet().stream().sorted().toList();
-        } catch (Exception ignored) {
-            return List.of();
-        }
+        try { return pusherClient.getAllBaseUrls().keySet().stream().sorted().toList(); } catch (Exception ignored) { return List.of(); }
     }
 
     private SchedulerStrategy getStrategy() {
@@ -233,14 +221,8 @@ public class SchedulerService {
         }
     }
 
-    public String currentStrategyName() {
-        return effectiveStrategyName();
-    }
-
-    private String effectiveStrategyName() {
-        String name = strategyName == null ? "rr" : strategyName.trim().toLowerCase();
-        return name.isBlank() ? "rr" : name;
-    }
+    public String currentStrategyName() { return effectiveStrategyName(); }
+    private String effectiveStrategyName() { String name = strategyName == null ? "rr" : strategyName.trim().toLowerCase(); return name.isBlank() ? "rr" : name; }
 
     private String buildMessageEnvelope(String type, String payload) {
         try {
@@ -280,16 +262,8 @@ public class SchedulerService {
         return exp + jitter;
     }
 
-    private void sleepQuietly(long ms) {
-        try {
-            Thread.sleep(Math.max(1L, ms));
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-        }
-    }
+    private void sleepQuietly(long ms) { try { Thread.sleep(Math.max(1L, ms)); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); } }
 
     @FunctionalInterface
-    private interface ThrowingRunnable {
-        void run() throws Exception;
-    }
+    private interface ThrowingRunnable { void run() throws Exception; }
 }

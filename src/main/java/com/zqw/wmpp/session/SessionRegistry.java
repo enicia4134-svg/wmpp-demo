@@ -83,6 +83,7 @@ public class SessionRegistry {
         }
         offlineWindows.computeIfAbsent(appId, k -> new ConcurrentHashMap<>())
                 .put(userId, new OfflineWindow(clock.millis()));
+        System.out.println("[OFFLINE_STASH] " + appId + "/" + userId + " reason=disconnect msg=");
         if (appMap.isEmpty()) sessions.remove(appId);
     }
 
