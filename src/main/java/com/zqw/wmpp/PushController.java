@@ -86,7 +86,7 @@ public class PushController {
         if (body == null || body.userIds() == null || body.userIds().isEmpty()) return "userIds required";
 
         String payload = body.message() == null ? "" : body.message();
-        long target = body.userIds().stream().filter(id -> !registryClient.lookupPusher(appId, id).isBlank()).count();
+        long target = body.userIds().stream().filter(id -> hasRoute(appId, id)).count();
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
 
@@ -105,7 +105,7 @@ public class PushController {
                 .filter(s -> !s.isBlank())
                 .collect(Collectors.toList());
 
-        long target = ids.stream().filter(id -> !registryClient.lookupPusher(appId, id).isBlank()).count();
+        long target = ids.stream().filter(id -> hasRoute(appId, id)).count();
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
 
@@ -136,5 +136,10 @@ public class PushController {
         if (role != WmppRole.gateway && role != WmppRole.mono) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "not gateway role");
         }
+    }
+
+    private boolean hasRoute(String appId, String userId) {
+        String routed = registryClient.lookupPusher(appId, userId);
+        return routed != null && !routed.isBlank();
     }
 }
