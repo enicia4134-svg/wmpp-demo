@@ -4,16 +4,26 @@ x-app: &app
     dockerfile: Dockerfile
   image: wmpp-demo:latest
   restart: unless-stopped
+  environment:
+    WMPP_ADMIN_TOKEN: change-me
+    WMPP_REGISTRY_BASEURL: http://registry:8090
 
 services:
   registry:
     <<: *app
     environment:
       WMPP_ADMIN_TOKEN: change-me
+      WMPP_REGISTRY_BASEURL: http://registry:8090
       WMPP_ROLE: registry
     ports:
       - "8090:8090"
-    command: ["java","-jar","/app/app.jar","--server.port=8090","--wmpp.role=registry"]
+    command:
+      - "java"
+      - "-jar"
+      - "/app/app.jar"
+      - "--server.port=8090"
+      - "--wmpp.role=registry"
+      - "--wmpp.registry.baseUrl=http://registry:8090"
     healthcheck:
       test: ["CMD", "sh", "-c", "wget -qO- http://127.0.0.1:8090/actuator/health/readiness || exit 1"]
       interval: 15s
@@ -24,6 +34,8 @@ services:
   scheduler:
     <<: *app
     environment:
+      WMPP_ADMIN_TOKEN: change-me
+      WMPP_REGISTRY_BASEURL: http://registry:8090
       WMPP_ROLE: scheduler
     ports:
       - "8081:8081"
@@ -48,6 +60,10 @@ services:
 
   gateway:
     <<: *app
+    environment:
+      WMPP_ADMIN_TOKEN: change-me
+      WMPP_REGISTRY_BASEURL: http://registry:8090
+      WMPP_ROLE: gateway
     ports:
       - "8080:8080"
     command:
@@ -56,6 +72,7 @@ services:
       - "/app/app.jar"
       - "--server.port=8080"
       - "--wmpp.role=gateway"
+      - "--wmpp.registry.baseUrl=http://registry:8090"
       - "--wmpp.scheduler.baseUrl=http://scheduler:8081"
       - "--wmpp.appRegistry.file=/data/apps.json"
       - "--wmpp.admin.token=change-me"
@@ -73,6 +90,10 @@ services:
 
   pusher1:
     <<: *app
+    environment:
+      WMPP_ADMIN_TOKEN: change-me
+      WMPP_REGISTRY_BASEURL: http://registry:8090
+      WMPP_ROLE: pusher
     ports:
       - "8084:8084"
     command:
@@ -98,6 +119,10 @@ services:
 
   pusher2:
     <<: *app
+    environment:
+      WMPP_ADMIN_TOKEN: change-me
+      WMPP_REGISTRY_BASEURL: http://registry:8090
+      WMPP_ROLE: pusher
     ports:
       - "8085:8085"
     command:
