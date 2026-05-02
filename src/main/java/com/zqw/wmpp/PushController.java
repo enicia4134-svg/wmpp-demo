@@ -2,7 +2,6 @@ package com.zqw.wmpp;
 
 import com.zqw.wmpp.auth.AppAuthInterceptor;
 import com.zqw.wmpp.reliability.PushAuditService;
-import com.zqw.wmpp.reliability.PushTaskQueueService;
 import com.zqw.wmpp.role.WmppRole;
 import com.zqw.wmpp.scheduler.SchedulerClient;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -32,9 +32,6 @@ public class PushController {
 
     @Autowired
     private WmppRole role;
-
-    @Autowired
-    private PushTaskQueueService pushTaskQueueService;
 
     @Autowired
     private PushAuditService pushAuditService;
@@ -54,7 +51,7 @@ public class PushController {
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
         long target = registryClient.pusherCounts(appId).values().stream().mapToLong(Integer::longValue).sum();
-        String taskId = pushTaskQueueService.enqueueBroadcast(appId, payload);
+        String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "BROADCAST", payload, List.of("ALL"), target, target, 0);
 
         try {
@@ -80,7 +77,7 @@ public class PushController {
 
         String appId = (String) request.getAttribute(AppAuthInterceptor.ATTR_APP_ID);
         long target = registryClient.lookupPusher(appId, userId).isBlank() ? 0L : 1L;
-        String taskId = pushTaskQueueService.enqueueUser(appId, userId, payload);
+        String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "USER", payload, List.of(userId), target, target, 0);
 
         try {
@@ -109,7 +106,7 @@ public class PushController {
 
         String payload = body.message() == null ? "" : body.message();
         long target = body.userIds().stream().filter(id -> !registryClient.lookupPusher(appId, id).isBlank()).count();
-        String taskId = pushTaskQueueService.enqueueUsers(appId, body.userIds(), payload);
+        String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
 
         try {
@@ -134,7 +131,7 @@ public class PushController {
                 .collect(Collectors.toList());
 
         long target = ids.stream().filter(id -> !registryClient.lookupPusher(appId, id).isBlank()).count();
-        String taskId = pushTaskQueueService.enqueueUsers(appId, ids, payload);
+        String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
 
         try {

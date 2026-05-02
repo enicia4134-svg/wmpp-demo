@@ -36,9 +36,7 @@ public class SessionRegistry {
         this.deliveryTracker = deliveryTracker;
     }
 
-    // Map<AppId, Map<UserId, SessionInfo>>
     private final Map<String, Map<String, SessionInfo>> sessions = new ConcurrentHashMap<>();
-    // Map<AppId, Map<UserId, OfflineWindow>>
     private final Map<String, Map<String, OfflineWindow>> offlineWindows = new ConcurrentHashMap<>();
     private static final int OFFLINE_INBOX_LIMIT = 100;
 
@@ -55,10 +53,10 @@ public class SessionRegistry {
                 .compute(userId, (uid, old) -> {
                     if (old == null) return new SessionInfo(session, null, clock.millis());
                     old.closeWebSocketQuietly(CloseStatus.NORMAL);
-                    return new SessionInfo(session, old.sseEmitter, clock.millis());
+                    old.completeSseQuietly();
+                    return new SessionInfo(session, null, clock.millis());
                 });
 
-        // ensure lastHeartbeat updated
         info.touch(clock.millis());
         flushOfflineWindow(appId, userId);
     }
@@ -154,21 +152,6 @@ public class SessionRegistry {
 
         String msgId = extractMsgId(message);
 
-        // Prefer SSE for data push channel if present
-        if (info.sseEmitter != null) {
-            try {
-                info.sseEmitter.send(SseEmitter.event().name("message").data(message));
-                if (msgId != null) {
-                    deliveryTracker.trackSend(appId, userId, msgId, message);
-                }
-                System.out.println("[DIRECT_SEND_SSE] " + appId + "/" + userId + " msg=" + summarize(message));
-                return;
-            } catch (IOException ex) {
-                System.out.println("[DIRECT_SEND_SSE_FAIL] " + appId + "/" + userId + " err=" + ex.getMessage());
-                removeSse(appId, userId, info.sseEmitter);
-            }
-        }
-
         WebSocketSession ws = info.webSocketSession;
         if (ws != null && ws.isOpen()) {
             try {
@@ -180,6 +163,20 @@ public class SessionRegistry {
                 return;
             } catch (IOException ex) {
                 System.out.println("[DIRECT_SEND_WS_FAIL] " + appId + "/" + userId + " err=" + ex.getMessage());
+            }
+        }
+
+        if (info.sseEmitter != null) {
+            try {
+                info.sseEmitter.send(SseEmitter.event().name("message").data(message));
+                if (msgId != null) {
+                    deliveryTracker.trackSend(appId, userId, msgId, message);
+                }
+                System.out.println("[DIRECT_SEND_SSE] " + appId + "/" + userId + " msg=" + summarize(message));
+                return;
+            } catch (IOException ex) {
+                System.out.println("[DIRECT_SEND_SSE_FAIL] " + appId + "/" + userId + " err=" + ex.getMessage());
+                removeSse(appId, userId, info.sseEmitter);
             }
         }
 
@@ -372,4 +369,3 @@ public class SessionRegistry {
         }
     }
 }
-
