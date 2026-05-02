@@ -34,7 +34,6 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-
         String appId = (String) session.getAttributes().get(ATTR_APP_ID);
         String userId = (String) session.getAttributes().get(ATTR_USER_ID);
         System.out.println("[WS_OPEN] appId=" + appId + ", userId=" + userId + ", uri=" + session.getUri());
@@ -50,23 +49,21 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-
         String appId = (String) session.getAttributes().get(ATTR_APP_ID);
         String userId = (String) session.getAttributes().get(ATTR_USER_ID);
         System.out.println("[WS_CLOSE] appId=" + appId + ", userId=" + userId + ", status=" + status);
 
         if (appId != null && userId != null) {
             sessionRegistry.unregisterWebSocket(appId, userId, session);
-            if (role == WmppRole.pusher) {
-                registryClient.unregister(appId, userId, pusherId);
-            }
+            // Keep registry route on disconnect so offline messages can still be routed to the
+            // owning pusher instance and stashed there for later flush on reconnect.
+            // The route will be refreshed automatically on the next connection establishment.
             System.out.println("❌ 用户下线: appId=" + appId + ", userId=" + userId);
         }
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        // Control channel: heartbeat + control commands
         String payload = message.getPayload();
         if (payload == null) return;
 
@@ -74,9 +71,11 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
         String userId = (String) session.getAttributes().get(ATTR_USER_ID);
         if (appId == null || userId == null) return;
 
-        // Minimal protocol: "ping" / "heartbeat"
         if ("ping".equalsIgnoreCase(payload) || "heartbeat".equalsIgnoreCase(payload)) {
             sessionRegistry.touchHeartbeat(appId, userId);
+            if (role == WmppRole.pusher) {
+                registryClient.register(appId, userId, pusherId);
+            }
             try {
                 session.sendMessage(new TextMessage("pong"));
             } catch (Exception ignored) {
@@ -84,7 +83,6 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        // ACK protocol (json): {"type":"ack","msgId":"..."}
         try {
             JsonNode node = objectMapper.readTree(payload);
             String type = node.hasNonNull("type") ? node.get("type").asText() : null;
@@ -95,6 +93,4 @@ public class PushWebSocketHandler extends TextWebSocketHandler {
         } catch (Exception ignored) {
         }
     }
-
-    // NOTE: In microservices mode, delivery is done via SessionRegistry and pusher internal HTTP APIs.
 }
