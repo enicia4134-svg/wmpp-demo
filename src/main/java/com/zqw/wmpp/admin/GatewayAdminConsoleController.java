@@ -24,7 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin/console")
 @ConditionalOnProperty(name = "wmpp.role", havingValue = "gateway", matchIfMissing = false)
-public class AdminConsoleController {
+public class GatewayAdminConsoleController {
 
     private final AdminAuth adminAuth;
     private final AppRegistryService appRegistryService;
@@ -38,7 +38,7 @@ public class AdminConsoleController {
     private final PushTaskQueueService pushTaskQueueService;
 
     @Autowired
-    public AdminConsoleController(
+    public GatewayAdminConsoleController(
             AdminAuth adminAuth,
             AppRegistryService appRegistryService,
             RegistryController registryController,
