@@ -17,9 +17,16 @@ window.wmpp = {
         this.disconnect()
         this.manualDisconnect = false
 
+        if (!appId || !String(appId).trim()) {
+            throw new Error("appId is required")
+        }
+        if (!userId || !String(userId).trim()) {
+            throw new Error("userId is required")
+        }
+
         this.opts = {
-            appId,
-            userId,
+            appId: String(appId).trim(),
+            userId: String(userId).trim(),
             // Production default: WS first, SSE fallback.
             transportPolicy: options && options.transportPolicy ? options.transportPolicy : "ws_primary_sse_fallback",
             heartbeatMs: options && options.heartbeatMs ? options.heartbeatMs : 15000,

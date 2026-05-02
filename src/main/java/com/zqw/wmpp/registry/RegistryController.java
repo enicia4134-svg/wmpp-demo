@@ -106,7 +106,9 @@ public class RegistryController {
 
     @Scheduled(fixedDelayString = "${wmpp.registry.route-cleanup-ms:60000}")
     public void cleanupExpiredRoutes() {
-        requireRegistryRole();
+        if (role != WmppRole.registry && role != WmppRole.mono) {
+            return;
+        }
         purgeExpired();
     }
 
