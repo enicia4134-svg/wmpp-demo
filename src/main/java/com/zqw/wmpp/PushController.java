@@ -90,7 +90,7 @@ public class PushController {
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, body.userIds(), target, target, 0);
 
-        SchedulerController.UsersResponse resp = schedulerClient.users(appId, body.userIds(), payload);
+        com.zqw.wmpp.scheduler.SchedulerController.UsersResponse resp = schedulerClient.users(appId, body.userIds(), payload);
         System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + body.userIds().size() + ", success=" + resp.success() + ", failed=" + resp.failed());
         return "queued-users:" + taskId + "|success=" + resp.success() + "|failed=" + resp.failed();
     }
@@ -109,7 +109,7 @@ public class PushController {
         String taskId = UUID.randomUUID().toString();
         pushAuditService.record(taskId, appId, "GROUP", payload, ids, target, target, 0);
 
-        SchedulerController.UsersResponse resp = schedulerClient.users(appId, ids, payload);
+        com.zqw.wmpp.scheduler.SchedulerController.UsersResponse resp = schedulerClient.users(appId, ids, payload);
         System.out.println("[GATEWAY_DIRECT_USERS_DONE] appId=" + appId + ", target=" + target + ", count=" + ids.size() + ", success=" + resp.success() + ", failed=" + resp.failed());
         return "queued-users:" + taskId + "|success=" + resp.success() + "|failed=" + resp.failed();
     }

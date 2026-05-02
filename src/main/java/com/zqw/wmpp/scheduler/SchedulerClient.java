@@ -50,9 +50,7 @@ public class SchedulerClient {
     }
 
     public SchedulerController.UsersResponse users(String appId, List<String> userIds, String msg) {
-        SchedulerController.UsersBody body = new SchedulerController.UsersBody();
-        body.userIds = userIds;
-        body.message = msg;
+        SchedulerController.UsersBody body = new SchedulerController.UsersBody(userIds, msg);
         return http.post()
                 .uri(uriBuilder -> uriBuilder.path("/scheduler/users")
                         .queryParam("appId", appId)
