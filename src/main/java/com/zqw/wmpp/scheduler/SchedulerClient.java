@@ -16,14 +16,19 @@ public class SchedulerClient {
         this.http = RestClient.builder().baseUrl(baseUrl).build();
     }
 
-    public SchedulerController.AssignResponse assign(String appId, String userId) {
-        return http.get()
+    public SchedulerController.AssignResponse assign(String appId, String userId, String forwardedProto, String forwardedHost) {
+        RestClient.RequestHeadersSpec<?> spec = http.get()
                 .uri(uriBuilder -> uriBuilder.path("/scheduler/assign")
                         .queryParam("appId", appId)
                         .queryParam("userId", userId)
-                        .build())
-                .retrieve()
-                .body(SchedulerController.AssignResponse.class);
+                        .build());
+        if (forwardedProto != null && !forwardedProto.isBlank()) {
+            spec = spec.header("X-Forwarded-Proto", forwardedProto.trim());
+        }
+        if (forwardedHost != null && !forwardedHost.isBlank()) {
+            spec = spec.header("X-Forwarded-Host", forwardedHost.trim());
+        }
+        return spec.retrieve().body(SchedulerController.AssignResponse.class);
     }
 
     public void broadcast(String appId, String msg) {

@@ -78,7 +78,8 @@ window.wmpp = {
         try {
             const appId = this.opts.appId
             const userId = this.opts.userId
-            const resp = await fetch("/api/connect?appId=" + encodeURIComponent(appId) + "&userId=" + encodeURIComponent(userId))
+            const baseUrl = this._apiBaseUrl()
+            const resp = await fetch(baseUrl + "/api/connect?appId=" + encodeURIComponent(appId) + "&userId=" + encodeURIComponent(userId), { credentials: "include" })
             if (resp.ok) {
                 this.endpoints = await resp.json()
                 return
@@ -87,6 +88,14 @@ window.wmpp = {
         } catch (e) {
             throw new Error("resolve endpoints failed: " + (e && e.message ? e.message : e))
         }
+    },
+
+    _apiBaseUrl: function () {
+        const opts = this.opts || {}
+        if (opts.apiBaseUrl && String(opts.apiBaseUrl).trim()) {
+            return String(opts.apiBaseUrl).trim().replace(/\/$/, "")
+        }
+        return ""
     },
 
     _wsUrl: function () {

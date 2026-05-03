@@ -3,7 +3,6 @@ package com.zqw.wmpp.tenant;
 import com.zqw.wmpp.auth.AppAuthInterceptor;
 import com.zqw.wmpp.auth.AppRegistryService;
 import com.zqw.wmpp.registry.RegistryClient;
-import com.zqw.wmpp.registry.RegistryController;
 import com.zqw.wmpp.reliability.PushAuditService;
 import com.zqw.wmpp.reliability.PushProgressService;
 import com.zqw.wmpp.role.WmppRole;
@@ -38,8 +37,6 @@ public class TenantConsoleController {
     @Autowired
     private PusherClient pusherClient;
 
-    @Autowired
-    private RegistryController registryController;
 
     @Autowired
     private PushProgressService pushProgressService;
@@ -88,7 +85,7 @@ public class TenantConsoleController {
             mono.put("local", "mono-inline-registry");
             return mono;
         }
-        Map<String, Map<String, String>> snapshot = registryController.snapshot();
+        Map<String, Map<String, String>> snapshot = registryClient.snapshot();
         Map<String, String> appRoutes = snapshot.get(appId);
         return appRoutes == null ? Map.of() : appRoutes;
     }

@@ -84,13 +84,19 @@ public class SchedulerController {
     public record AssignResponse(String pusherId, String httpBaseUrl, String wsBaseUrl) {}
 
     @GetMapping("/assign")
-    public AssignResponse assign(@RequestParam String appId, @RequestParam String userId) {
+    public AssignResponse assign(
+            @RequestParam String appId,
+            @RequestParam String userId,
+            @RequestHeader(name = "X-Forwarded-Proto", required = false) String forwardedProto,
+            @RequestHeader(name = "X-Forwarded-Host", required = false) String forwardedHost,
+            @RequestHeader(name = "Host", required = false) String hostHeader
+    ) {
         requireScheduler();
         requireApp(appId);
         String routed = registryClient.lookupPusher(appId, userId);
         String pusherId = (routed != null && !routed.isBlank()) ? routed : schedulerService.selectPusherIdForNewConnection(appId);
         String internalHttp = pusherClient.getBaseUrl(pusherId);
-        String publicHttp = pusherPublicEndpoints.publicBaseUrl(pusherId, internalHttp);
+        String publicHttp = pusherPublicEndpoints.publicBaseUrlOrDetect(pusherId, internalHttp, forwardedProto, forwardedHost, null, hostHeader);
         String ws = toWsBase(publicHttp);
         return new AssignResponse(pusherId, publicHttp, ws);
     }

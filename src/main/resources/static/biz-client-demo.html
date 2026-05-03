@@ -100,14 +100,14 @@
 let connected=false
 let lastChannel='-'
 const qs=new URLSearchParams(location.search)
-const secrets={systemA:'systemA-secret',systemB:'systemB-secret',systemC:'0acf17aafe2866284a4bd5f5b52af9d3624a9286523a1963'}
+const secrets={systemA:'systemA-secret',systemB:'systemB-secret',systemC:'systemC-secret'}
 function $(id){return document.getElementById(id)}
 function add(text,cls='sys'){const d=document.createElement('div');d.className='line '+cls;d.textContent='['+new Date().toLocaleTimeString()+'] '+text;$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
 function setStatus(text,ok){$('status').className='status '+(ok?'ok':'warn');$('status').innerHTML='<span class="dot"></span>'+text}
 function syncSecret(){const app=$('appId').value;if(secrets[app]) $('secret').value=secrets[app]}
 function clearLog(){$('log').innerHTML=''}
 function updateTerminalInfo(){const appId=$('appId').value.trim(),userId=$('userId').value.trim();$('terminalInfo').textContent=connected?('业务系统用户 '+userId+' 已登录 '+appId+'，当前连接通道：'+lastChannel+'，正在等待平台主动推送消息。'):('当前终端未上线。上线后将以 '+appId+' / '+userId+' 身份接收消息。')}
-function loginAndConnect(){const appId=$('appId').value.trim(),userId=$('userId').value.trim(),transportPolicy=$('transport').value;if(!appId||!userId){add('appId / userId 不能为空','err');return}wmpp.connect(appId,userId,{transportPolicy,onMessage:({channel,body,raw})=>{lastChannel=channel||'-';const text=body&&body.payload?body.payload:raw;add('平台推送到达（'+appId+'/'+userId+'）['+lastChannel+'] -> '+text,'recv');updateTerminalInfo()}});connected=true;lastChannel='connecting';setStatus('已上线 '+appId+'/'+userId,true);updateTerminalInfo();add('业务系统客户端登录成功：已通过 SDK 连接 WMPP 平台 -> '+appId+'/'+userId+' ('+transportPolicy+')')}
+function loginAndConnect(){const appId=$('appId').value.trim(),userId=$('userId').value.trim(),transportPolicy=$('transport').value;if(!appId||!userId){add('appId / userId 不能为空','err');return}wmpp.connect(appId,userId,{transportPolicy,apiBaseUrl:location.origin,onMessage:({channel,body,raw})=>{lastChannel=channel||'-';const text=body&&body.payload?body.payload:raw;add('平台推送到达（'+appId+'/'+userId+'）['+lastChannel+'] -> '+text,'recv');updateTerminalInfo()}});connected=true;lastChannel='connecting';setStatus('已上线 '+appId+'/'+userId,true);updateTerminalInfo();add('业务系统客户端登录成功：已通过 SDK 连接 WMPP 平台 -> '+appId+'/'+userId+' ('+transportPolicy+')')}
 function disconnectClient(){wmpp.disconnect();connected=false;lastChannel='-';setStatus('未上线',false);updateTerminalInfo();add('终端已下线，停止接收消息（连接已主动断开）')}
 window.addEventListener('load',()=>{if(qs.get('appId')) $('appId').value=qs.get('appId');if(qs.get('userId')) $('userId').value=qs.get('userId');syncSecret();updateTerminalInfo();add('终端已就绪：用户登录 -> 用户上线 -> 被动接收消息（仅接收本系统消息）');if(qs.get('autoLogin')==='1'){loginAndConnect()}})
 </script>

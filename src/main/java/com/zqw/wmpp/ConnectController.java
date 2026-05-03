@@ -43,8 +43,10 @@ public class ConnectController {
 
         System.out.println("[API_CONNECT] appId=" + appId + ", userId=" + userId + ", role=" + role);
 
+        String forwardedProto = firstHeaderValue(request, "X-Forwarded-Proto");
+        String forwardedHost = firstHeaderValue(request, "X-Forwarded-Host");
         SchedulerController.AssignResponse assigned = (role == WmppRole.gateway)
-                ? schedulerClient.assign(appId, userId)
+                ? schedulerClient.assign(appId, userId, forwardedProto, forwardedHost)
                 : new SchedulerController.AssignResponse("local", resolveHttpBaseUrl(request), resolveWsBaseUrl(request));
 
         String httpBase = assigned.httpBaseUrl();

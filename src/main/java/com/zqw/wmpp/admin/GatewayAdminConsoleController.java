@@ -3,15 +3,13 @@ package com.zqw.wmpp.admin;
 import com.zqw.wmpp.SchedulerService;
 import com.zqw.wmpp.auth.AdminAuth;
 import com.zqw.wmpp.auth.AppRegistryService;
-import com.zqw.wmpp.registry.RegistryController;
+import com.zqw.wmpp.registry.RegistryClient;
 import com.zqw.wmpp.reliability.PushProgressService;
 import com.zqw.wmpp.reliability.PushTaskQueueService;
 import com.zqw.wmpp.role.WmppRole;
 import com.zqw.wmpp.scheduler.PusherClient;
 import com.zqw.wmpp.session.SessionRegistry;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,12 +21,11 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/console")
-@ConditionalOnProperty(name = "wmpp.role", havingValue = "gateway", matchIfMissing = false)
 public class GatewayAdminConsoleController {
 
     private final AdminAuth adminAuth;
     private final AppRegistryService appRegistryService;
-    private final RegistryController registryController;
+    private final RegistryClient registryClient;
     private final SessionRegistry sessionRegistry;
     private final WmppRole role;
     private final PusherClient pusherClient;
@@ -41,10 +38,10 @@ public class GatewayAdminConsoleController {
     public GatewayAdminConsoleController(
             AdminAuth adminAuth,
             AppRegistryService appRegistryService,
-            RegistryController registryController,
+            RegistryClient registryClient,
             SessionRegistry sessionRegistry,
             WmppRole role,
-            @Nullable PusherClient pusherClient,
+            PusherClient pusherClient,
             SchedulerService schedulerService,
             PusherPoolService pusherPoolService,
             PushProgressService pushProgressService,
@@ -52,7 +49,7 @@ public class GatewayAdminConsoleController {
     ) {
         this.adminAuth = adminAuth;
         this.appRegistryService = appRegistryService;
-        this.registryController = registryController;
+        this.registryClient = registryClient;
         this.sessionRegistry = sessionRegistry;
         this.role = role;
         this.pusherClient = pusherClient;
@@ -82,6 +79,7 @@ public class GatewayAdminConsoleController {
 
     @GetMapping("/overview")
     public AdminOverview overview(@RequestHeader(name = "X-Admin-Token", required = false) String token) {
+        System.out.println("[ADMIN_CONSOLE_HIT] overview");
         adminAuth.require(token);
 
         List<AppRegistryService.AppInfo> apps = appRegistryService.list();
@@ -113,6 +111,7 @@ public class GatewayAdminConsoleController {
 
     @GetMapping("/pusher-pool")
     public PusherPoolService.PusherPoolStatus pusherPool(@RequestHeader(name = "X-Admin-Token", required = false) String token) {
+        System.out.println("[ADMIN_CONSOLE_HIT] pusherPool");
         adminAuth.require(token);
         return pusherPoolService.snapshot(aggregateNodes(snapshotRoutes()));
     }
@@ -130,7 +129,7 @@ public class GatewayAdminConsoleController {
             }
             return mono;
         }
-        return registryController.snapshot();
+        return registryClient.snapshot();
     }
 
     private int onlineFor(String appId, Map<String, Map<String, String>> routes) {

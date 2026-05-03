@@ -8,6 +8,6 @@
   "allowPush" : true
 }, {
   "appId" : "systemC",
-  "secretKey" : "0acf17aafe2866284a4bd5f5b52af9d3624a9286523a1963",
+  "secretKey" : "systemC-secret",
   "allowPush" : true
 } ]
