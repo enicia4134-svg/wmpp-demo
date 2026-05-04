@@ -3,7 +3,6 @@ package com.zqw.wmpp.scheduler;
 import com.zqw.wmpp.TopicService;
 import com.zqw.wmpp.SchedulerService;
 import com.zqw.wmpp.auth.AppRegistryService;
-import com.zqw.wmpp.registry.RegistryClient;
 import com.zqw.wmpp.role.WmppRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -29,8 +28,6 @@ public class SchedulerController {
     private PusherClient pusherClient;
     @Autowired
     private PusherPublicEndpoints pusherPublicEndpoints;
-    @Autowired
-    private RegistryClient registryClient;
 
     @PostMapping("/broadcast")
     public void broadcast(@RequestParam String appId, @RequestParam String message) throws Exception {
@@ -93,8 +90,7 @@ public class SchedulerController {
     ) {
         requireScheduler();
         requireApp(appId);
-        String routed = registryClient.lookupPusher(appId, userId);
-        String pusherId = (routed != null && !routed.isBlank()) ? routed : schedulerService.selectPusherIdForNewConnection(appId);
+        String pusherId = schedulerService.selectPusherIdForNewConnection(appId);
         String internalHttp = pusherClient.getBaseUrl(pusherId);
         String publicHttp = pusherPublicEndpoints.publicBaseUrlOrDetect(pusherId, internalHttp, forwardedProto, forwardedHost, null, hostHeader);
         String ws = toWsBase(publicHttp);
